@@ -1,0 +1,9 @@
+node_modules/
+.env
+data/*
+!data/.gitkeep
+photos/*
+!photos/.gitkeep
+!photos/README.md
+.DS_Store
+*.log

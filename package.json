@@ -1,0 +1,19 @@
+{
+  "name": "victor-and-adaeze",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The wedding of Victor & Adaeze: digital invitation, RSVP and guest management.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server.js",
+    "dev": "node --disable-warning=ExperimentalWarning --watch-path=src --watch-path=content --watch-path=server.js server.js",
+    "test": "node --disable-warning=ExperimentalWarning --test \"test/**/*.test.js\"",
+    "photos": "node scripts/photos.js"
+  },
+  "devDependencies": {
+    "sharp": "^0.35.5"
+  }
+}
