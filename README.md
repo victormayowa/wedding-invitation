@@ -113,19 +113,17 @@ ssh-copy-id -i wedding-deploy.pub root@169.58.141.167
 
 | Secret | Value |
 |---|---|
-| `SSH_HOST` | `169.58.141.167` |
 | `SSH_PRIVATE_KEY` | the whole contents of the `wedding-deploy` file (the private key) |
 | `ADMIN_PASSWORD` | the password for `/admin`, at least 10 characters |
 | `SESSION_SECRET` | 64 random characters: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
 | `SSH_KNOWN_HOSTS` | *recommended:* the output of `ssh-keyscan 169.58.141.167` |
 | `DATABASE_URL` | *optional:* your Postgres, e.g. `postgres://user:password@host:5432/wedding` |
 | `DATABASE_SSL` | *optional:* `require`, or `no-verify` if your Postgres uses a self-signed certificate |
-| `DOMAIN` | *optional:* your own domain once its DNS points at the server; otherwise the site is at `https://169-58-141-167.sslip.io` |
-| `SSH_USER`, `SSH_PORT` | *optional:* default to `root` and `22` |
+Secrets must not contain single quotes. Until the three required ones exist, the deploy step is skipped with a warning, and the tests still run.
 
-Secrets must not contain single quotes. Until the four required ones exist, the deploy step is skipped with a warning, and the tests still run.
+The server address and domain are built into the workflow: the site deploys to `root@169.58.141.167` and is served at **https://victoradaezenewine.duckdns.org**. To change either, add a repository variable (Settings → Secrets and variables → Actions → Variables) named `SSH_HOST`, `SSH_USER`, `SSH_PORT` or `DOMAIN`.
 
-**4. Deploy.** Push to the default branch, or open **Actions → Test and deploy → Run workflow**. The run summary shows the live link.
+**4. Deploy.** Push to the default branch, or open **Actions → Test and deploy → Run workflow**. The site goes live at https://victoradaezenewine.duckdns.org, and the run summary shows the link.
 
 Every later push redeploys in about a minute. Replies are never lost: they live in Postgres, not in the container.
 

@@ -2,18 +2,17 @@
 # Docker image, publish it to GitHub Packages and deploy it to your server over SSH.
 #
 # Repository secrets (Settings → Secrets and variables → Actions):
-#   SSH_HOST         server address, e.g. 169.58.141.167                 (required)
 #   SSH_PRIVATE_KEY  private key allowed to log in to the server         (required)
-#   ADMIN_PASSWORD   password for /admin                                 (required)
+#   ADMIN_PASSWORD   password for /admin, at least 10 characters         (required)
 #   SESSION_SECRET   64 random characters                                (required)
-#   SSH_USER         defaults to root
-#   SSH_PORT         defaults to 22
 #   SSH_KNOWN_HOSTS  the server's host key line; recommended, otherwise it is scanned on each run
-#   DOMAIN           e.g. victorandadaeze.com; defaults to <ip>.sslip.io
 #   DATABASE_URL     your Postgres; without it a Postgres container runs on the server
 #   DATABASE_SSL     'require', or 'no-verify' for a self-signed certificate
 #
-# Until the four required secrets exist, the deploy job is skipped with a warning.
+# Settings that are not secret have defaults below; override any of them with a
+# repository variable or secret of the same name: SSH_HOST, SSH_USER, SSH_PORT, DOMAIN.
+#
+# Until the three required secrets exist, the deploy job is skipped with a warning.
 name: Test and deploy
 
 on:
@@ -67,9 +66,10 @@ jobs:
       contents: read
       packages: write
     env:
-      SSH_HOST: ${{ secrets.SSH_HOST }}
-      SSH_USER: ${{ secrets.SSH_USER || 'root' }}
-      SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+      SSH_HOST: ${{ secrets.SSH_HOST || vars.SSH_HOST || '169.58.141.167' }}
+      SSH_USER: ${{ secrets.SSH_USER || vars.SSH_USER || 'root' }}
+      SSH_PORT: ${{ secrets.SSH_PORT || vars.SSH_PORT || '22' }}
+      DOMAIN: ${{ secrets.DOMAIN || vars.DOMAIN || 'victoradaezenewine.duckdns.org' }}
     steps:
       - name: Check deployment settings
         id: check
@@ -79,7 +79,7 @@ jobs:
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
         run: |
           missing=()
-          for name in SSH_HOST SSH_PRIVATE_KEY ADMIN_PASSWORD SESSION_SECRET; do
+          for name in SSH_PRIVATE_KEY ADMIN_PASSWORD SESSION_SECRET; do
             [ -n "${!name}" ] || missing+=("$name")
           done
           if [ ${#missing[@]} -gt 0 ]; then
@@ -150,7 +150,6 @@ jobs:
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DATABASE_SSL: ${{ secrets.DATABASE_SSL }}
-          DOMAIN: ${{ secrets.DOMAIN }}
         run: |
           if [ -z "$DOMAIN" ]; then
             if [[ "$SSH_HOST" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then DOMAIN="${SSH_HOST//./-}.sslip.io"; else DOMAIN="$SSH_HOST"; fi
