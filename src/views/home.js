@@ -366,10 +366,14 @@ function gallery(ctx) {
       const img = ctx.images.get(im.src);
       const webp = img.widths.map((w) => `/images/${img.name}-${w}.webp ${w}w`).join(', ');
       const i = index++;
-      return html`<li class="gallery__item" style="--ar:${(img.w / img.h).toFixed(4)}" data-album="${a.id}">
-        <button class="gallery__open" type="button" data-index="${i}" data-srcset="${webp}" data-src="/images/${img.name}-${img.widths[img.widths.length - 1]}.jpg" data-caption="${im.caption || ''}" data-alt="${im.alt || ''}" aria-label="View photo: ${im.alt || a.title}">
-          ${picture(ctx, im.src, { alt: im.alt || '', sizes: '(min-width: 900px) 33vw, 50vw', reveal: false })}
-        </button>
+      const full = `/images/${img.name}-${img.widths[img.widths.length - 1]}.jpg`;
+      const film = img.video;
+      const label = im.alt || a.title;
+      return html`<li class="gallery__item${film ? ' gallery__item--film' : ''}" style="--ar:${(img.w / img.h).toFixed(4)}" data-album="${a.id}">
+        <a class="gallery__open" href="${film ? film.src : full}" data-index="${i}" data-srcset="${webp}" data-src="${full}"${film ? html` data-video="${film.src}"` : ''} data-caption="${im.caption || ''}" data-alt="${im.alt || ''}" aria-label="${film ? `Play film: ${label}` : `View photo: ${label}`}">
+          ${picture(ctx, im.src, { alt: im.alt || '', sizes: '(min-width: 900px) 25vw, 50vw', reveal: false })}
+          ${film ? html`<span class="gallery__film" aria-hidden="true">Film · ${Math.floor(film.duration / 60)}:${String(film.duration % 60).padStart(2, '0')}</span>` : ''}
+        </a>
       </li>`;
     }),
   );

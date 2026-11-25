@@ -53,6 +53,31 @@ test('public pages', async (t) => {
     assert.equal((await c.get('/..%2fpackage.json')).status, 404);
   });
 
+  await t.test('the gallery offers photos and films that stream in byte ranges', async () => {
+    const home = await c.get('/');
+    assert.match(home.text, /property="og:image" content="http:\/\/wedding\.test\/images\/og\.jpg\?v=/);
+    assert.match(home.text, /<a class="gallery__open" href="\/videos\/proposal-film-1\.mp4"[^>]*data-video="\/videos\/proposal-film-1\.mp4"/);
+    assert.match(home.text, /Film · 0:10/);
+    assert.match(home.text, /href="\/images\/proposal-03-810\.jpg"/);
+
+    const full = await c.get('/videos/proposal-film-2.mp4');
+    assert.equal(full.status, 200);
+    assert.equal(full.headers.get('content-type'), 'video/mp4');
+    assert.equal(full.headers.get('accept-ranges'), 'bytes');
+    const size = Number(full.headers.get('content-length'));
+
+    const part = await fetch(`${s.origin}/videos/proposal-film-2.mp4`, { headers: { range: 'bytes=0-1' } });
+    assert.equal(part.status, 206);
+    assert.equal(part.headers.get('content-range'), `bytes 0-1/${size}`);
+    assert.equal((await part.arrayBuffer()).byteLength, 2);
+
+    const tail = await fetch(`${s.origin}/videos/proposal-film-2.mp4`, { headers: { range: 'bytes=-100' } });
+    assert.equal(tail.headers.get('content-range'), `bytes ${size - 100}-${size - 1}/${size}`);
+
+    const beyond = await fetch(`${s.origin}/videos/proposal-film-2.mp4`, { headers: { range: `bytes=${size}-` } });
+    assert.equal(beyond.status, 416);
+  });
+
   await t.test('calendar entries exist only for confirmed times', async () => {
     const ics = await c.get('/calendar/church.ics');
     assert.equal(ics.status, 200);

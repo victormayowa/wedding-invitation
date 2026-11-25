@@ -1,0 +1,85 @@
+{
+  "proposal-01": {
+    "w": 810,
+    "h": 1080,
+    "color": "#7e615d",
+    "widths": [
+      640,
+      810
+    ],
+    "source": "proposal-01.jpg",
+    "mtime": 1795649508675
+  },
+  "proposal-02": {
+    "w": 810,
+    "h": 1080,
+    "color": "#a57975",
+    "widths": [
+      640,
+      810
+    ],
+    "source": "proposal-02.jpg",
+    "mtime": 1795649508676
+  },
+  "proposal-03": {
+    "w": 810,
+    "h": 1080,
+    "color": "#8b6966",
+    "widths": [
+      640,
+      810
+    ],
+    "source": "proposal-03.jpg",
+    "mtime": 1795649508678
+  },
+  "proposal-04": {
+    "w": 810,
+    "h": 1080,
+    "color": "#8f685f",
+    "widths": [
+      640,
+      810
+    ],
+    "source": "proposal-04.jpg",
+    "mtime": 1795649508679
+  },
+  "proposal-05": {
+    "w": 810,
+    "h": 1080,
+    "color": "#c5897c",
+    "widths": [
+      640,
+      810
+    ],
+    "source": "proposal-05.jpg",
+    "mtime": 1795649508681
+  },
+  "proposal-film-1": {
+    "w": 464,
+    "h": 832,
+    "color": "#774347",
+    "widths": [
+      464
+    ],
+    "video": {
+      "src": "/videos/proposal-film-1.mp4",
+      "duration": 10
+    },
+    "source": "proposal-film-1.mp4",
+    "mtime": 1795649508682
+  },
+  "proposal-film-2": {
+    "w": 464,
+    "h": 832,
+    "color": "#70464d",
+    "widths": [
+      464
+    ],
+    "video": {
+      "src": "/videos/proposal-film-2.mp4",
+      "duration": 3
+    },
+    "source": "proposal-film-2.mp4",
+    "mtime": 1795649508684
+  }
+}

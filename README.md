@@ -65,7 +65,7 @@ npm run photos
 
 3. Refer to each photo by its file name without the extension, e.g. `image: 'hero'` for `photos/hero.jpg`.
 
-The script makes fast, right-sized copies and removes location data. The portrait becomes the image shown in WhatsApp link previews. See [photos/README.md](photos/README.md).
+The script makes fast, right-sized copies and removes location data. The portrait becomes the image shown in WhatsApp link previews. Short videos (MP4 or MOV) work the same way: they appear in the gallery marked “Film” and play in the viewer. Videos need [ffmpeg](https://ffmpeg.org) installed. See [photos/README.md](photos/README.md).
 
 ## Sending invitations
 

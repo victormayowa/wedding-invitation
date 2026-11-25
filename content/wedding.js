@@ -40,8 +40,8 @@ export default {
 
   hero: {
     /** Engagement or pre-wedding portrait, upright (4:5) works best. */
-    image: tbc('Engagement portrait: add photos/hero.jpg, then write \'hero\' here'),
-    alt: 'Victor and Adaeze',
+    image: 'proposal-04',
+    alt: 'Victor and Adaeze smiling beneath a neon sign that reads “Will You Marry Me?”',
     credit: null, // e.g. 'Photograph by …'
   },
 
@@ -91,8 +91,9 @@ export default {
         title: 'The proposal',
         when: tbc('When and where'),
         body: tbc('The proposal, in your own words'),
-        image: tbc('Proposal photo, landscape works best'),
-        layout: 'wide',
+        image: 'proposal-05',
+        alt: 'The engagement ring, held out towards the camera',
+        layout: 'side',
       },
       {
         title: 'What marriage means to us',
@@ -228,6 +229,19 @@ export default {
      * Add a 'Wedding day' album after the celebration.
      */
     albums: [
+      {
+        id: 'proposal',
+        title: 'The proposal',
+        images: [
+          { src: 'proposal-film-2', alt: 'The neon “Will You Marry Me?” sign, lit for the moment' },
+          { src: 'proposal-03', alt: 'Victor and Adaeze beside the neon “Will You Marry Me?” sign' },
+          { src: 'proposal-05', alt: 'The engagement ring, held out towards the camera' },
+          { src: 'proposal-01', alt: 'Victor and Adaeze laughing with a little one in their arms' },
+          { src: 'proposal-film-1', alt: 'Victor and Adaeze embracing as guests look on' },
+          { src: 'proposal-02', alt: 'Victor and Adaeze with a little one in their arms' },
+          { src: 'proposal-04', alt: 'Victor and Adaeze smiling beneath the neon sign' },
+        ],
+      },
       { id: 'engagement', title: 'Engagement', images: [] },
       { id: 'pre-wedding', title: 'Pre-wedding', images: [] },
       { id: 'moments', title: 'Moments together', images: [] },

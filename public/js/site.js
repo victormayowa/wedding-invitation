@@ -192,19 +192,100 @@
       items.forEach((li) => {
         li.hidden = album !== 'all' && li.dataset.album !== album;
       });
+      layout();
     });
+
+    /*
+     * Balanced rows. Every photo keeps its own proportions; for each possible number
+     * of rows, split the photos evenly and size each row to the full width, then keep
+     * the arrangement whose rows sit closest to the ideal height. No half-empty last row.
+     */
+    function layout() {
+      const visible = items.filter((li) => !li.hidden);
+      // Exact (fractional) width, less a pixel, so rounding never pushes a photo onto the next row.
+      const width = gallery.getBoundingClientRect().width - 1;
+      if (!visible.length || width <= 0) return;
+      const gap = parseFloat(getComputedStyle(gallery).columnGap) || 0;
+      const ideal = width < 600 ? 200 : width < 1000 ? 270 : 330;
+      const ratios = visible.map((li) => parseFloat(li.style.getPropertyValue('--ar')) || 1);
+      const total = ratios.reduce((a, b) => a + b, 0);
+      let best = null;
+      for (let n = 1; n <= Math.min(visible.length, 60); n++) {
+        const rows = [];
+        let row = [];
+        let acc = 0;
+        ratios.forEach((r, i) => {
+          if (row.length && rows.length < n - 1 && acc + r / 2 > (total * (rows.length + 1)) / n) {
+            rows.push(row);
+            row = [];
+          }
+          row.push(i);
+          acc += r;
+        });
+        rows.push(row);
+        const heights = rows.map((rw) => (width - gap * (rw.length - 1)) / rw.reduce((s, i) => s + ratios[i], 0));
+        const score = heights.reduce((s, h) => s + Math.abs(Math.log(h / ideal)), 0) / heights.length;
+        if (!best || score < best.score) best = { rows, heights, score };
+      }
+      best.rows.forEach((rw, k) =>
+        rw.forEach((i) => {
+          visible[i].style.flex = '0 0 auto';
+          visible[i].style.width = `${Math.floor(ratios[i] * best.heights[k] * 100) / 100}px`;
+        }),
+      );
+    }
+    layout();
+    if ('ResizeObserver' in window) {
+      let lastWidth = gallery.clientWidth;
+      new ResizeObserver(() => {
+        if (gallery.clientWidth === lastWidth) return;
+        lastWidth = gallery.clientWidth;
+        requestAnimationFrame(layout);
+      }).observe(gallery);
+    }
 
     const box = doc.querySelector('[data-lightbox]');
     if (box && typeof box.showModal === 'function') {
       const img = box.querySelector('[data-lightbox-img]');
       const caption = box.querySelector('[data-lightbox-caption]');
       const count = box.querySelector('[data-lightbox-count]');
+      const stage = box.querySelector('.lightbox__stage');
+      let film = null;
       let list = [];
       let index = 0;
+
+      const stopFilm = () => {
+        if (!film) return;
+        film.pause();
+        film.hidden = true;
+        film.removeAttribute('src');
+        film.load();
+      };
 
       const show = (i) => {
         index = (i + list.length) % list.length;
         const b = list[index];
+        count.textContent = `${pad(index + 1)} / ${pad(list.length)}`;
+        caption.textContent = b.dataset.caption || '';
+        if (b.dataset.video) {
+          if (!film) {
+            film = doc.createElement('video');
+            film.className = 'lightbox__video';
+            film.controls = true;
+            film.playsInline = true;
+            film.preload = 'auto';
+            stage.appendChild(film);
+          }
+          img.hidden = true;
+          film.hidden = false;
+          film.poster = b.dataset.src;
+          film.src = b.dataset.video;
+          film.setAttribute('aria-label', b.dataset.alt || 'Film');
+          film.play().catch(() => {});
+          return;
+        }
+        stopFilm();
+        img.hidden = false;
         img.classList.add('is-loading');
         const next = new Image();
         next.sizes = '100vw';
@@ -215,34 +296,35 @@
           img.srcset = b.dataset.srcset;
           img.src = b.dataset.src;
           img.alt = b.dataset.alt || '';
-          caption.textContent = b.dataset.caption || '';
-          count.textContent = `${pad(index + 1)} / ${pad(list.length)}`;
           requestAnimationFrame(() => img.classList.remove('is-loading'));
         };
         (next.decode ? next.decode() : Promise.resolve()).then(apply, apply);
       };
 
       gallery.addEventListener('click', (e) => {
-        const button = e.target.closest('.gallery__open');
-        if (!button) return;
+        const link = e.target.closest('.gallery__open');
+        if (!link || e.metaKey || e.ctrlKey || e.shiftKey) return;
+        e.preventDefault();
         list = items.filter((li) => !li.hidden).map((li) => li.querySelector('.gallery__open'));
-        show(list.indexOf(button));
         box.showModal();
+        show(list.indexOf(link));
       });
       box.querySelector('[data-lightbox-prev]').addEventListener('click', () => show(index - 1));
       box.querySelector('[data-lightbox-next]').addEventListener('click', () => show(index + 1));
       box.querySelector('[data-lightbox-close]').addEventListener('click', () => box.close());
+      box.addEventListener('close', stopFilm);
       box.addEventListener('keydown', (e) => {
+        if (e.target === film) return;
         if (e.key === 'ArrowLeft') show(index - 1);
         if (e.key === 'ArrowRight') show(index + 1);
       });
-      const stage = box.querySelector('.lightbox__stage');
       stage.addEventListener('click', (e) => {
         if (e.target === stage) box.close();
       });
       let startX = null;
       stage.addEventListener('pointerdown', (e) => {
-        startX = e.clientX;
+        // Dragging along a film's timeline must not turn the page.
+        startX = e.target.closest('video') ? null : e.clientX;
       });
       stage.addEventListener('pointerup', (e) => {
         if (startX === null) return;

@@ -158,6 +158,8 @@ const TYPES = {
   '.webp': 'image/webp',
   '.avif': 'image/avif',
   '.woff2': 'font/woff2',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
   '.txt': 'text/plain; charset=utf-8',
   '.ico': 'image/x-icon',
 };
@@ -234,14 +236,32 @@ export function staticFiles(dir) {
       }
       const accept = String(req.headers['accept-encoding'] || '');
       let body = entry.body;
+      res.statusCode = 200;
       if (entry.br && /\bbr\b/.test(accept)) {
         body = entry.br;
         res.setHeader('Content-Encoding', 'br');
       } else if (entry.gzip && /\bgzip\b/.test(accept)) {
         body = entry.gzip;
         res.setHeader('Content-Encoding', 'gzip');
+      } else {
+        // Byte ranges, which Safari needs before it will play a video.
+        res.setHeader('Accept-Ranges', 'bytes');
+        const m = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || '').trim());
+        if (m && (m[1] || m[2])) {
+          const size = entry.body.length;
+          const start = m[1] ? Number(m[1]) : Math.max(0, size - Number(m[2]));
+          const end = m[1] && m[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
+          if (start > end || start >= size) {
+            res.statusCode = 416;
+            res.setHeader('Content-Range', `bytes */${size}`);
+            res.end();
+            return true;
+          }
+          body = entry.body.subarray(start, end + 1);
+          res.statusCode = 206;
+          res.setHeader('Content-Range', `bytes ${start}-${end}/${size}`);
+        }
       }
-      res.statusCode = 200;
       res.setHeader('Content-Length', body.length);
       res.end(req.method === 'HEAD' ? undefined : body);
       return true;

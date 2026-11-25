@@ -17,5 +17,6 @@ Each photo is saved to `public/images/` at several sizes, in WebP and JPEG, with
 | Story chapters, `layout: 'wide'` | Landscape, 3:2 |
 | Venue photos | Landscape, 3:2 |
 | Gallery | Any shape; each photo keeps its own proportions |
+| Films (MP4, MOV) | Short clips play in the gallery viewer. They need [ffmpeg](https://ffmpeg.org) installed, and phone videos are kept as they are, only made ready to stream. |
 
 Give every gallery photo a short `alt` description (what the photo shows), for guests using screen readers. Running the command again only processes new or changed photos. Deleting a photo from this folder removes its copies.

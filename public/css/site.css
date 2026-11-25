@@ -158,6 +158,9 @@ picture {
 img {
   height: auto;
 }
+[hidden] {
+  display: none !important;
+}
 
 p,
 h1,
@@ -598,6 +601,7 @@ html.menu-open .nav {
   will-change: transform;
 }
 .hero__figure .media img {
+  object-position: 50% 30%;
   animation: settle 2.6s var(--ease-out) both;
 }
 
@@ -1085,12 +1089,28 @@ details[open]::details-content {
   display: none;
 }
 .gallery__open {
+  position: relative;
   display: block;
   width: 100%;
   padding: 0;
   border: 0;
   background: none;
   cursor: zoom-in;
+}
+.gallery__item--film .gallery__open {
+  cursor: pointer;
+}
+.gallery__film {
+  position: absolute;
+  left: 0.75rem;
+  bottom: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  background: rgba(33, 28, 24, 0.7);
+  color: var(--night-ink);
+  font: 500 0.625rem/1 var(--sans);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  pointer-events: none;
 }
 .gallery__open img {
   transition: transform 1.4s var(--ease-out);
@@ -1124,7 +1144,7 @@ details[open]::details-content {
   margin: 0;
   padding: 0;
   border: 0;
-  background: rgba(27, 23, 20, 0.97);
+  background-color: var(--night);
   color: var(--night-ink);
 }
 .lightbox::backdrop {
@@ -1141,9 +1161,11 @@ details[open]::details-content {
   min-height: 0;
   padding: clamp(1rem, 4vw, 3rem);
 }
-.lightbox__img {
+.lightbox__img,
+.lightbox__video {
+  /* Sized against the viewport: percentages don't resolve inside the dialog's grid. */
   max-width: 100%;
-  max-height: 100%;
+  max-height: calc(100dvh - 2 * clamp(1rem, 4vw, 3rem) - 6rem);
   width: auto;
   height: auto;
   object-fit: contain;
@@ -1151,6 +1173,9 @@ details[open]::details-content {
 }
 .lightbox__img.is-loading {
   opacity: 0;
+}
+.lightbox__video {
+  background: #000;
 }
 .lightbox__bar {
   display: grid;
