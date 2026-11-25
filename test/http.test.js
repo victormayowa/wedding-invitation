@@ -90,8 +90,8 @@ test('public pages', async (t) => {
 test('a guest replies with their personal link', async (t) => {
   const s = await startServer();
   t.after(() => s.close());
-  const inv = s.db.createInvitation({ name: 'The Okafor Family', seats: 2, events: ['traditional', 'church', 'reception'] });
-  const other = s.db.createInvitation({ name: 'Tolu', seats: 1, events: ['church'] });
+  const inv = (await s.db.createInvitation({ name: 'The Okafor Family', seats: 2, events: ['traditional', 'church', 'reception'] }));
+  const other = (await s.db.createInvitation({ name: 'Tolu', seats: 1, events: ['church'] }));
   const guest = s.client();
 
   await t.test('unknown links and codes are refused', async () => {
@@ -118,14 +118,14 @@ test('a guest replies with their personal link', async (t) => {
     const tooMany = await guest.post('/rsvp', reply({ guests: '5' }));
     assert.equal(tooMany.status, 422);
     assert.match(tooMany.text, /up to 2 guests/);
-    assert.equal(s.db.getInvitation(inv.id).response, null);
+    assert.equal((await s.db.getInvitation(inv.id)).response, null);
   });
 
   await t.test('a valid reply is saved, confirmed and can be updated', async () => {
     const ok = await guest.post('/rsvp', reply({ events: ['church', 'thanksgiving'] }));
     assert.equal(ok.status, 303);
     assert.equal(ok.location, '/rsvp/thank-you');
-    const saved = s.db.getInvitation(inv.id).response;
+    const saved = (await s.db.getInvitation(inv.id)).response;
     assert.deepEqual(saved.events, ['church'], 'events outside the invitation are ignored');
     assert.equal(saved.guests, 2);
 
@@ -137,10 +137,10 @@ test('a guest replies with their personal link', async (t) => {
     assert.doesNotMatch(ics.text, /Traditional/);
 
     await guest.post('/rsvp', reply({ attending: 'no' }));
-    const updated = s.db.getInvitation(inv.id).response;
+    const updated = (await s.db.getInvitation(inv.id)).response;
     assert.equal(updated.attending, false);
     assert.equal(updated.revisions, 2);
-    assert.equal(s.db.getInvitation(other.id).response, null);
+    assert.equal((await s.db.getInvitation(other.id)).response, null);
   });
 
   await t.test('a forged invite cookie is ignored', async () => {
@@ -156,7 +156,7 @@ test('a guest replies with their personal link', async (t) => {
     assert.match(res.text, /Replies have now closed/);
     const late = await guest.post('/rsvp', reply());
     assert.match(late.text, /Replies have now closed/);
-    assert.equal(s.db.getInvitation(inv.id).response.attending, false);
+    assert.equal((await s.db.getInvitation(inv.id)).response.attending, false);
     s.setNow('2026-11-29T09:00:00+01:00');
     const home = await guest.get('/');
     assert.match(home.text, /Married on Saturday 28 November 2026/);
@@ -185,7 +185,7 @@ test('the admin area', async (t) => {
     assert.equal(forged.status, 403);
     const crossSite = await admin.post('/admin/invitations', { name: 'X', seats: '1', events: 'church', _csrf: await admin.csrf() }, { headers: { origin: 'https://evil.example' } });
     assert.equal(crossSite.status, 403);
-    assert.equal(s.db.listInvitations().length, 0);
+    assert.equal((await s.db.listInvitations()).length, 0);
   });
 
   await t.test('creates, edits and exports invitations', async () => {
@@ -194,7 +194,7 @@ test('the admin area', async (t) => {
     assert.equal(bad.status, 422);
     const res = await admin.post('/admin/invitations', { _csrf: csrf, name: '=cmd|calc', seats: '3', side: 'second', events: 'church', phone: '0803 111 2222' });
     assert.equal(res.status, 303);
-    const inv = s.db.listInvitations()[0];
+    const inv = (await s.db.listInvitations())[0];
     assert.equal(inv.seats, 3);
     assert.equal(inv.side, 'second');
 
@@ -202,7 +202,7 @@ test('the admin area', async (t) => {
     assert.match(page.text, new RegExp(`/i/${inv.code}`));
     const send = await admin.post(`/admin/invitations/${inv.id}/send`, { _csrf: csrf });
     assert.match(send.location, /^https:\/\/wa\.me\/2348031112222\?text=/);
-    assert.ok(s.db.getInvitation(inv.id).sentAt);
+    assert.ok((await s.db.getInvitation(inv.id)).sentAt);
 
     const csv = await admin.get('/admin/export/guests.csv');
     assert.equal(csv.status, 200);
@@ -215,10 +215,10 @@ test('the admin area', async (t) => {
     const bad = await admin.post('/admin/import', { _csrf: csrf, csv: 'name,seats,events\nAda,2,church\nBen,0,church' });
     assert.equal(bad.status, 422);
     assert.match(bad.text, /Row 3: seats must be 1 to 50/);
-    assert.equal(s.db.listInvitations().length, 1);
+    assert.equal((await s.db.listInvitations()).length, 1);
     const ok = await admin.post('/admin/import', { _csrf: csrf, csv: 'name,seats,side,events\nAda,2,adaeze,church;reception\n"Okafor, Chidi",1,groom,' });
     assert.equal(ok.status, 303);
-    const list = s.db.listInvitations();
+    const list = (await s.db.listInvitations());
     assert.equal(list.length, 3);
     const ada = list.find((i) => i.name === 'Ada');
     assert.deepEqual(ada.events, ['church', 'reception']);

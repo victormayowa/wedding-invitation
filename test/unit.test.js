@@ -43,28 +43,56 @@ test('invitation codes are unambiguous and normalised', () => {
   assert.equal(displayCode('ABCD2345'), 'ABCD-2345');
 });
 
-test('database keeps one reply per invitation and counts revisions', () => {
-  const db = openDatabase(':memory:');
-  const inv = db.createInvitation({ name: 'The Okafor Family', seats: 3, events: ['church'] });
-  assert.equal(db.findByCode(displayCode(inv.code).toLowerCase()).id, inv.id);
-  assert.throws(() => db.createInvitation({ name: 'Dup', seats: 1, code: inv.code }), /already in use/);
+for (const backend of ['sqlite', ...(process.env.TEST_DATABASE_URL ? ['postgres'] : [])]) {
+  test(`database (${backend}) keeps one reply per invitation and counts revisions`, async () => {
+    const db =
+      backend === 'postgres'
+        ? await openDatabase({ url: process.env.TEST_DATABASE_URL, schema: `unit_${process.pid}` })
+        : await openDatabase();
+    try {
+      const inv = await db.createInvitation({ name: 'The Okafor Family', seats: 3, events: ['church'] });
+      assert.equal((await db.findByCode(displayCode(inv.code).toLowerCase())).id, inv.id);
+      await assert.rejects(db.createInvitation({ name: 'Dup', seats: 1, code: inv.code }), /already in use/);
 
-  const reply = { attending: true, fullName: 'Chidi Okafor', phone: '0803 000 0000', guests: 2, events: ['church'] };
-  db.saveResponse(inv.id, reply);
-  const updated = db.saveResponse(inv.id, { ...reply, guests: 3 });
-  assert.equal(updated.response.guests, 3);
-  assert.equal(updated.response.revisions, 2);
-  assert.equal(db.listInvitations({ status: 'attending' }).length, 1);
-  assert.equal(db.listInvitations({ status: 'awaiting' }).length, 0);
+      const reply = { attending: true, fullName: 'Chidi Okafor', phone: '0803 000 0000', guests: 2, events: ['church'] };
+      await db.saveResponse(inv.id, reply);
+      const updated = await db.saveResponse(inv.id, { ...reply, guests: 3 });
+      assert.equal(updated.response.guests, 3);
+      assert.equal(updated.response.attending, true);
+      assert.equal(updated.response.revisions, 2);
+      assert.match(updated.response.updatedAt, /^\d{4}-\d{2}-\d{2}T/);
+      assert.equal((await db.listInvitations({ status: 'attending' })).length, 1);
+      assert.equal((await db.listInvitations({ status: 'awaiting' })).length, 0);
+      assert.equal((await db.listInvitations({ q: 'okafor' })).length, 1, 'search ignores case');
 
-  const newCode = db.regenerateCode(inv.id).code;
-  assert.notEqual(newCode, inv.code);
-  assert.equal(db.findByCode(inv.code), null);
+      const newCode = (await db.regenerateCode(inv.id)).code;
+      assert.notEqual(newCode, inv.code);
+      assert.equal(await db.findByCode(inv.code), null);
 
-  db.deleteInvitation(inv.id);
-  assert.equal(db.raw.prepare('SELECT COUNT(*) AS n FROM responses').get().n, 0);
-  db.close();
-});
+      await db.tx(async (t) => {
+        await t.createInvitation({ name: 'Ada', seats: 1, events: [] });
+        await t.createInvitation({ name: 'Ben', seats: 1, events: [] });
+      });
+      await assert.rejects(
+        db.tx(async (t) => {
+          await t.createInvitation({ name: 'Rolled back', seats: 1, events: [] });
+          await t.createInvitation({ name: 'Invalid', seats: 99, events: [] });
+        }),
+      );
+      assert.deepEqual((await db.listInvitations()).map((i) => i.name), ['Ada', 'Ben', 'The Okafor Family']);
+
+      await db.addAnnouncement('Hello');
+      assert.equal((await db.listAnnouncements())[0].body, 'Hello');
+
+      await db.deleteInvitation(inv.id);
+      const [{ n }] = await db.query('SELECT COUNT(*) AS n FROM responses');
+      assert.equal(Number(n), 0, 'replies are deleted with their invitation');
+    } finally {
+      await db.dropSchema();
+      await db.close();
+    }
+  });
+}
 
 test('replies are validated against the invitation', () => {
   const invitation = { seats: 2, events: ['church', 'reception'] };

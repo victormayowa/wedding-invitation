@@ -1,0 +1,197 @@
+# Tests every push. Pushes to the default branch (or a manual run) then build the
+# Docker image, publish it to GitHub Packages and deploy it to your server over SSH.
+#
+# Repository secrets (Settings → Secrets and variables → Actions):
+#   SSH_HOST         server address, e.g. 169.58.141.167                 (required)
+#   SSH_PRIVATE_KEY  private key allowed to log in to the server         (required)
+#   ADMIN_PASSWORD   password for /admin                                 (required)
+#   SESSION_SECRET   64 random characters                                (required)
+#   SSH_USER         defaults to root
+#   SSH_PORT         defaults to 22
+#   SSH_KNOWN_HOSTS  the server's host key line; recommended, otherwise it is scanned on each run
+#   DOMAIN           e.g. victorandadaeze.com; defaults to <ip>.sslip.io
+#   DATABASE_URL     your Postgres; without it a Postgres container runs on the server
+#   DATABASE_SSL     'require', or 'no-verify' for a self-signed certificate
+#
+# Until the four required secrets exist, the deploy job is skipped with a warning.
+name: Test and deploy
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: wedding_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Tests (SQLite)
+        run: npm test
+      - name: Tests (Postgres)
+        run: npm test
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/wedding_test
+
+  deploy:
+    needs: test
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      packages: write
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER || 'root' }}
+      SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+    steps:
+      - name: Check deployment settings
+        id: check
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+        run: |
+          missing=()
+          for name in SSH_HOST SSH_PRIVATE_KEY ADMIN_PASSWORD SESSION_SECRET; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::warning title=Deployment skipped::Add these repository secrets to deploy: ${missing[*]}"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.ready == 'true'
+
+      - name: Image name
+        if: steps.check.outputs.ready == 'true'
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+        if: steps.check.outputs.ready == 'true'
+
+      - uses: docker/login-action@v3
+        if: steps.check.outputs.ready == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish the image
+        if: steps.check.outputs.ready == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Connect to the server
+        if: steps.check.outputs.ready == 'true'
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          if [ -n "$SSH_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" > ~/.ssh/known_hosts
+          fi
+          cat > ~/.ssh/config <<EOF
+          Host server
+            HostName $SSH_HOST
+            User $SSH_USER
+            Port $SSH_PORT
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            ServerAliveInterval 30
+          EOF
+          ssh server 'mkdir -p /opt/wedding'
+
+      - name: Send settings
+        if: steps.check.outputs.ready == 'true'
+        env:
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_SSL: ${{ secrets.DATABASE_SSL }}
+          DOMAIN: ${{ secrets.DOMAIN }}
+        run: |
+          if [ -z "$DOMAIN" ]; then
+            if [[ "$SSH_HOST" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then DOMAIN="${SSH_HOST//./-}.sslip.io"; else DOMAIN="$SSH_HOST"; fi
+          fi
+          for value in "$ADMIN_PASSWORD" "$SESSION_SECRET" "$DATABASE_URL"; do
+            if [[ "$value" == *"'"* ]]; then echo "::error::Secrets must not contain single quotes."; exit 1; fi
+          done
+          umask 077
+          {
+            echo "IMAGE='$IMAGE:$GITHUB_SHA'"
+            echo "DOMAIN='$DOMAIN'"
+            echo "PUBLIC_URL='https://$DOMAIN'"
+            echo "ADMIN_PASSWORD='$ADMIN_PASSWORD'"
+            echo "SESSION_SECRET='$SESSION_SECRET'"
+            if [ -n "$DATABASE_URL" ]; then echo "DATABASE_URL='$DATABASE_URL'"; fi
+            if [ -n "$DATABASE_SSL" ]; then echo "DATABASE_SSL='$DATABASE_SSL'"; fi
+          } > deploy.env
+          scp -q deploy/compose.yml server:/opt/wedding/compose.yml
+          scp -q deploy.env server:/opt/wedding/deploy.env
+          rm deploy.env
+          echo "SITE_URL=https://$DOMAIN" >> "$GITHUB_ENV"
+
+      - name: Deploy
+        if: steps.check.outputs.ready == 'true'
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s' "$GHCR_TOKEN" | ssh server "docker login ghcr.io -u '${{ github.actor }}' --password-stdin >/dev/null 2>&1 || true"
+          ssh server 'bash -s' < deploy/remote.sh
+          ssh server 'docker logout ghcr.io >/dev/null 2>&1 || true'
+
+      - name: Check the live site
+        if: steps.check.outputs.ready == 'true'
+        run: |
+          for _ in $(seq 1 30); do
+            if curl -fsS --max-time 10 "$SITE_URL/healthz" >/dev/null; then
+              echo "### Live at $SITE_URL" >> "$GITHUB_STEP_SUMMARY"
+              echo "Live at $SITE_URL"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::The site did not answer at $SITE_URL. Check that ports 80 and 443 are open on the server."
+          exit 1

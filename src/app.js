@@ -36,13 +36,13 @@ export function createApp({ config, content, contentProblems = [], db }) {
 
   /* ---------- Per-request context ---------- */
 
-  function context(req, res, url) {
+  async function context(req, res, url) {
     const cookies = parseCookies(req.headers.cookie);
     const sessionToken = cookies[auth.ADMIN_COOKIE];
     const admin = auth.verifySession(sessionToken);
     const now = config.now();
     const code = auth.readInvite(cookies[auth.INVITE_COOKIE]);
-    const invite = code ? db.findByCode(code) : null;
+    const invite = code ? await db.findByCode(code) : null;
     if (code && !invite) clearCookie(res, auth.INVITE_COOKIE, cookieOpts);
     const win = rsvpWindow(content, clock, now);
     let flash = null;
@@ -72,7 +72,7 @@ export function createApp({ config, content, contentProblems = [], db }) {
       asset: (p) => assets.url(p),
       publicUrl: config.publicUrl,
       ogImage: assets.exists('/images/og.jpg') ? `${config.publicUrl}${assets.url('/images/og.jpg')}` : null,
-      announcements: db.listAnnouncements(),
+      announcements: await db.listAnnouncements(),
       flash,
     };
   }
@@ -102,8 +102,8 @@ export function createApp({ config, content, contentProblems = [], db }) {
 
   router.get('/', (ctx) => sendHtml(ctx.req, ctx.res, 200, homePage(ctx)));
 
-  router.get('/i/:code', (ctx, { code }) => {
-    const invite = db.findByCode(code);
+  router.get('/i/:code', async (ctx, { code }) => {
+    const invite = await db.findByCode(code);
     if (!invite) {
       return sendHtml(ctx.req, ctx.res, 404, rsvpViews.codePage(ctx, {
         code: displayCode(normaliseCode(code)),
@@ -149,7 +149,7 @@ export function createApp({ config, content, contentProblems = [], db }) {
     if (!normaliseCode(code)) {
       return sendHtml(req, res, 400, rsvpViews.codePage(ctx, { code, error: 'Please enter your invitation code.', win: ctx.window }));
     }
-    const invite = db.findByCode(code);
+    const invite = await db.findByCode(code);
     if (!invite) {
       return sendHtml(req, res, 400, rsvpViews.codePage(ctx, {
         code,
@@ -185,7 +185,7 @@ export function createApp({ config, content, contentProblems = [], db }) {
       };
       return sendHtml(req, res, 422, rsvpViews.replyPage(ctx, { invitation: invite, events, values, errors: result.errors, win: ctx.window }));
     }
-    db.saveResponse(invite.id, result.value);
+    await db.saveResponse(invite.id, result.value);
     redirect(res, '/rsvp/thank-you');
   });
 
@@ -325,8 +325,8 @@ export function createApp({ config, content, contentProblems = [], db }) {
     };
   }
 
-  admin.get('/admin', (ctx) => {
-    const list = db.listInvitations();
+  admin.get('/admin', async (ctx) => {
+    const list = await db.listInvitations();
     const withReply = list.filter((i) => i.response);
     const byUpdated = [...withReply].sort((a, b) => b.response.updatedAt.localeCompare(a.response.updatedAt));
     const checklistCount = contentChecklist(content).reduce((n, g) => n + g.items.length, 0);
@@ -378,29 +378,29 @@ export function createApp({ config, content, contentProblems = [], db }) {
     return { values: v, errors };
   }
 
-  const categories = () => [...new Set(db.listInvitations().map((i) => i.category).filter(Boolean))].sort();
+  const categories = async () => [...new Set((await db.listInvitations()).map((i) => i.category).filter(Boolean))].sort();
 
-  admin.get('/admin/invitations', (ctx) => {
+  admin.get('/admin/invitations', async (ctx) => {
     const p = ctx.url.searchParams;
     const filters = {
       q: line(p.get('q'), 80),
       status: ['awaiting', 'attending', 'declined'].includes(p.get('status')) ? p.get('status') : '',
       side: adminViews.SIDES.includes(p.get('side')) ? p.get('side') : '',
     };
-    const list = db.listInvitations(filters);
-    const total = filters.q || filters.status || filters.side ? db.listInvitations().length : list.length;
+    const list = await db.listInvitations(filters);
+    const total = filters.q || filters.status || filters.side ? (await db.listInvitations()).length : list.length;
     sendHtml(ctx.req, ctx.res, 200, adminViews.invitationsPage(ctx, { list, filters, total }));
   });
 
-  admin.get('/admin/invitations/new', (ctx) => {
-    sendHtml(ctx.req, ctx.res, 200, adminViews.invitationFormPage(ctx, { values: blankInvitation(), categories: categories() }));
+  admin.get('/admin/invitations/new', async (ctx) => {
+    sendHtml(ctx.req, ctx.res, 200, adminViews.invitationFormPage(ctx, { values: blankInvitation(), categories: await categories() }));
   });
 
-  admin.post('/admin/invitations', (ctx, _p, form) => {
+  admin.post('/admin/invitations', async (ctx, _p, form) => {
     const { values, errors } = readInvitation(form);
     if (!Object.keys(errors).length) {
       try {
-        const inv = db.createInvitation(values);
+        const inv = await db.createInvitation(values);
         flash(ctx.res, `Invitation created for ${inv.name}.`);
         return redirect(ctx.res, `/admin/invitations/${inv.id}`);
       } catch (err) {
@@ -408,54 +408,54 @@ export function createApp({ config, content, contentProblems = [], db }) {
         errors[err.field] = err.message;
       }
     }
-    sendHtml(ctx.req, ctx.res, 422, adminViews.invitationFormPage(ctx, { values, errors, categories: categories() }));
+    sendHtml(ctx.req, ctx.res, 422, adminViews.invitationFormPage(ctx, { values, errors, categories: await categories() }));
   });
 
-  function loadInvitation(id) {
-    const inv = /^\d+$/.test(id) ? db.getInvitation(id) : null;
+  async function loadInvitation(id) {
+    const inv = /^\d+$/.test(id) ? await db.getInvitation(id) : null;
     if (!inv) throw new HttpError(404, 'That invitation doesn’t exist.');
     return inv;
   }
 
-  admin.get('/admin/invitations/:id', (ctx, { id }) => {
-    const invitation = loadInvitation(id);
-    sendHtml(ctx.req, ctx.res, 200, adminViews.invitationFormPage(ctx, { invitation, values: invitation, categories: categories() }));
+  admin.get('/admin/invitations/:id', async (ctx, { id }) => {
+    const invitation = await loadInvitation(id);
+    sendHtml(ctx.req, ctx.res, 200, adminViews.invitationFormPage(ctx, { invitation, values: invitation, categories: await categories() }));
   });
 
-  admin.post('/admin/invitations/:id', (ctx, { id }, form) => {
-    const invitation = loadInvitation(id);
+  admin.post('/admin/invitations/:id', async (ctx, { id }, form) => {
+    const invitation = await loadInvitation(id);
     const { values, errors } = readInvitation(form);
     if (Object.keys(errors).length) {
-      return sendHtml(ctx.req, ctx.res, 422, adminViews.invitationFormPage(ctx, { invitation, values, errors, categories: categories() }));
+      return sendHtml(ctx.req, ctx.res, 422, adminViews.invitationFormPage(ctx, { invitation, values, errors, categories: await categories() }));
     }
-    db.updateInvitation(invitation.id, values);
+    await db.updateInvitation(invitation.id, values);
     flash(ctx.res, 'Changes saved.');
     redirect(ctx.res, `/admin/invitations/${invitation.id}`);
   });
 
-  admin.post('/admin/invitations/:id/delete', (ctx, { id }) => {
-    const invitation = loadInvitation(id);
-    db.deleteInvitation(invitation.id);
+  admin.post('/admin/invitations/:id/delete', async (ctx, { id }) => {
+    const invitation = await loadInvitation(id);
+    await db.deleteInvitation(invitation.id);
     flash(ctx.res, `Deleted the invitation for ${invitation.name}.`);
     redirect(ctx.res, '/admin/invitations');
   });
 
-  admin.post('/admin/invitations/:id/clear-reply', (ctx, { id }) => {
-    const invitation = loadInvitation(id);
-    db.clearResponse(invitation.id);
+  admin.post('/admin/invitations/:id/clear-reply', async (ctx, { id }) => {
+    const invitation = await loadInvitation(id);
+    await db.clearResponse(invitation.id);
     flash(ctx.res, 'Reply cleared.');
     redirect(ctx.res, `/admin/invitations/${invitation.id}`);
   });
 
-  admin.post('/admin/invitations/:id/new-code', (ctx, { id }) => {
-    const inv = db.regenerateCode(loadInvitation(id).id);
+  admin.post('/admin/invitations/:id/new-code', async (ctx, { id }) => {
+    const inv = await db.regenerateCode((await loadInvitation(id)).id);
     flash(ctx.res, `New code issued: ${displayCode(inv.code)}.`);
     redirect(ctx.res, `/admin/invitations/${inv.id}`);
   });
 
-  admin.post('/admin/invitations/:id/send', (ctx, { id }) => {
-    const inv = loadInvitation(id);
-    db.markSent(inv.id);
+  admin.post('/admin/invitations/:id/send', async (ctx, { id }) => {
+    const inv = await loadInvitation(id);
+    await db.markSent(inv.id);
     const message = content.invitationMessage
       .replaceAll('{name}', inv.name)
       .replaceAll('{link}', `${config.publicUrl}/i/${inv.code}`)
@@ -494,7 +494,7 @@ export function createApp({ config, content, contentProblems = [], db }) {
 
   admin.post(
     '/admin/import',
-    (ctx, _p, form) => {
+    async (ctx, _p, form) => {
       const text = String(form.get('csv') || '');
       const rows = parseCsv(text);
       const errors = [];
@@ -506,7 +506,7 @@ export function createApp({ config, content, contentProblems = [], db }) {
       const records = [];
       const seenCodes = new Set();
       if (!errors.length) {
-        rows.slice(1).forEach((row, i) => {
+        for (const [i, row] of rows.slice(1).entries()) {
           const n = i + 2;
           const get = (k) => (header.indexOf(k) >= 0 ? row[header.indexOf(k)] ?? '' : '');
           const name = line(get('name'), 160);
@@ -525,16 +525,18 @@ export function createApp({ config, content, contentProblems = [], db }) {
           if (ev.unknown.length) errors.push(`Row ${n}: unknown event ${ev.unknown.map((u) => `“${u}”`).join(', ')}.`);
           if (code) {
             if (code.length < 4) errors.push(`Row ${n}: codes need at least 4 letters or numbers.`);
-            else if (seenCodes.has(code) || db.findByCode(code)) errors.push(`Row ${n}: the code ${displayCode(code)} is already in use.`);
+            else if (seenCodes.has(code) || (await db.findByCode(code))) errors.push(`Row ${n}: the code ${displayCode(code)} is already in use.`);
             seenCodes.add(code);
           }
           records.push({ name, seats, side: side || '', category: line(get('category'), 60), phone, email, notes: String(get('notes')).trim().slice(0, 2000), events: ev.ids, code });
-        });
+        }
       }
       if (errors.length) {
         return sendHtml(ctx.req, ctx.res, 422, adminViews.importPage(ctx, { text, errors: errors.slice(0, 50) }));
       }
-      db.tx(() => records.forEach((r) => db.createInvitation(r)));
+      await db.tx(async (t) => {
+        for (const r of records) await t.createInvitation(r);
+      });
       flash(ctx.res, `${records.length} ${records.length === 1 ? 'invitation' : 'invitations'} imported.`);
       redirect(ctx.res, '/admin/invitations');
     },
@@ -543,20 +545,20 @@ export function createApp({ config, content, contentProblems = [], db }) {
 
   /* ---------- Admin: updates ---------- */
 
-  admin.get('/admin/updates', (ctx) => sendHtml(ctx.req, ctx.res, 200, adminViews.updatesPage(ctx, { items: db.listAnnouncements() })));
+  admin.get('/admin/updates', async (ctx) => sendHtml(ctx.req, ctx.res, 200, adminViews.updatesPage(ctx, { items: await db.listAnnouncements() })));
 
-  admin.post('/admin/updates', (ctx, _p, form) => {
+  admin.post('/admin/updates', async (ctx, _p, form) => {
     const body = line(form.get('body'), 280);
     if (body.length < 3) {
-      return sendHtml(ctx.req, ctx.res, 422, adminViews.updatesPage(ctx, { items: db.listAnnouncements(), error: 'Please write the update first.' }));
+      return sendHtml(ctx.req, ctx.res, 422, adminViews.updatesPage(ctx, { items: await db.listAnnouncements(), error: 'Please write the update first.' }));
     }
-    db.addAnnouncement(body);
+    await db.addAnnouncement(body);
     flash(ctx.res, 'Update published.');
     redirect(ctx.res, '/admin/updates');
   });
 
-  admin.post('/admin/updates/:id/delete', (ctx, { id }) => {
-    if (/^\d+$/.test(id)) db.deleteAnnouncement(id);
+  admin.post('/admin/updates/:id/delete', async (ctx, { id }) => {
+    if (/^\d+$/.test(id)) await db.deleteAnnouncement(id);
     flash(ctx.res, 'Update removed.');
     redirect(ctx.res, '/admin/updates');
   });
@@ -579,8 +581,8 @@ export function createApp({ config, content, contentProblems = [], db }) {
 
   const stampFile = (ctx) => clock.day(ctx.now);
 
-  admin.get('/admin/export/guests.csv', (ctx) => {
-    const list = db.listInvitations();
+  admin.get('/admin/export/guests.csv', async (ctx) => {
+    const list = await db.listInvitations();
     const rows = [
       [
         'Invitation', 'Code', 'Side', 'Group', 'Seats', 'Reply', 'Guests attending',
@@ -619,9 +621,9 @@ export function createApp({ config, content, contentProblems = [], db }) {
     sendCsv(ctx, `guest-list-${stampFile(ctx)}.csv`, rows);
   });
 
-  admin.get('/admin/export/invitations.csv', (ctx) => {
+  admin.get('/admin/export/invitations.csv', async (ctx) => {
     const rows = [['name', 'seats', 'side', 'category', 'phone', 'email', 'events', 'code', 'link', 'sent', 'reply', 'notes']];
-    for (const i of db.listInvitations()) {
+    for (const i of await db.listInvitations()) {
       rows.push([
         i.name,
         i.seats,
@@ -647,7 +649,7 @@ export function createApp({ config, content, contentProblems = [], db }) {
     securityHeaders(res, { secure: config.secureCookies });
     try {
       if (assets.handle(req, res, url)) return;
-      const ctx = context(req, res, url);
+      const ctx = await context(req, res, url);
       const match = router.match(req.method, url.pathname);
       if (!match) throw new HttpError(404, 'This page isn’t part of our invitation.');
       if (match.methodNotAllowed) throw new HttpError(405, 'That isn’t possible here.');
@@ -659,7 +661,7 @@ export function createApp({ config, content, contentProblems = [], db }) {
       const titles = { 403: 'Please try again', 404: 'Page not found', 405: 'Not available', 413: 'Too large', 415: 'Please try again', 429: 'Please wait a moment' };
       const message = status >= 500 ? 'Something went wrong on our side. Please try again in a moment.' : err.message;
       try {
-        const ctx = context(req, res, url);
+        const ctx = await context(req, res, url);
         sendHtml(req, res, status, messagePage(ctx, status, titles[status] || 'Something went wrong', message));
       } catch (inner) {
         console.error(inner);

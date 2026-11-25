@@ -38,6 +38,11 @@ export function loadConfig(env = process.env) {
     publicUrl,
     secureCookies: publicUrl.startsWith('https://'),
     dataDir: path.resolve(ROOT, env.DATA_DIR || 'data'),
+    // Postgres connection string, e.g. postgres://user:password@host:5432/wedding.
+    // Without it the site keeps its data in a SQLite file in dataDir.
+    databaseUrl: env.DATABASE_URL || '',
+    // 'require' for TLS, 'no-verify' for TLS with a self-signed certificate.
+    databaseSsl: env.DATABASE_SSL || '',
     adminPassword,
     generatedPassword,
     sessionSecret,

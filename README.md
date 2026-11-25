@@ -82,30 +82,66 @@ The script makes fast, right-sized copies and removes location data. The portrai
 
 ## Putting it online
 
-The site is a single Node.js process with a SQLite database file, and has no other services or runtime dependencies. Any host that runs Node 22.13+ (or Docker) **with persistent storage** will do.
+Deployment runs from GitHub Actions ([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)):
 
-| Setting | Value |
+1. **Every push:** the tests run twice, once on SQLite and once on Postgres.
+2. **A push to the default branch, or "Run workflow" on the Actions tab:**
+   1. The workflow builds the Docker image and publishes it to GitHub Packages.
+   2. It connects to your server over SSH, installing Docker there on the first run.
+   3. It starts the site behind Caddy, which gets the HTTPS certificate automatically.
+   4. It checks that the site answers, then writes the live link in the run summary.
+
+The guest list lives in **Postgres**. Either give the workflow your own database (`DATABASE_URL`), or leave it out and a Postgres container runs on the server, with its data kept in a Docker volume.
+
+### One-time setup
+
+**1. The server.** Ports 80 and 443 must be open in its firewall or cloud security group, and nothing else may be using them.
+
+**2. A deploy key.** On your own computer, create a key that only GitHub uses:
+
+```bash
+ssh-keygen -t ed25519 -f wedding-deploy -N ""
+```
+
+Then allow it on the server:
+
+```bash
+ssh-copy-id -i wedding-deploy.pub root@169.58.141.167
+```
+
+**3. Repository secrets.** In GitHub, open the repository, then **Settings → Secrets and variables → Actions → New repository secret**:
+
+| Secret | Value |
 |---|---|
-| `NODE_ENV` | `production` |
-| `ADMIN_PASSWORD` | a long password (the site refuses to start without one) |
+| `SSH_HOST` | `169.58.141.167` |
+| `SSH_PRIVATE_KEY` | the whole contents of the `wedding-deploy` file (the private key) |
+| `ADMIN_PASSWORD` | the password for `/admin`, at least 10 characters |
 | `SESSION_SECRET` | 64 random characters: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
-| `PUBLIC_URL` | your address, e.g. `https://victorandadaeze.com` (used in invitation links and previews) |
-| `DATA_DIR` | a folder on a **persistent disk**: this is your guest list |
-| `TRUST_PROXY` | `1` when behind a proxy or platform such as Render, Railway or Fly |
+| `SSH_KNOWN_HOSTS` | *recommended:* the output of `ssh-keyscan 169.58.141.167` |
+| `DATABASE_URL` | *optional:* your Postgres, e.g. `postgres://user:password@host:5432/wedding` |
+| `DATABASE_SSL` | *optional:* `require`, or `no-verify` if your Postgres uses a self-signed certificate |
+| `DOMAIN` | *optional:* your own domain once its DNS points at the server; otherwise the site is at `https://169-58-141-167.sslip.io` |
+| `SSH_USER`, `SSH_PORT` | *optional:* default to `root` and `22` |
 
-**With Docker:**
+Secrets must not contain single quotes. Until the four required ones exist, the deploy step is skipped with a warning, and the tests still run.
+
+**4. Deploy.** Push to the default branch, or open **Actions → Test and deploy → Run workflow**. The run summary shows the live link.
+
+Every later push redeploys in about a minute. Replies are never lost: they live in Postgres, not in the container.
+
+### Backups
+
+On the server, if you are using the bundled Postgres:
 
 ```bash
-docker build -t wedding .
+cd /opt/wedding && docker compose exec -T db pg_dump -U wedding wedding > wedding-backup.sql
 ```
 
-```bash
-docker run -d -p 3000:3000 -v wedding-data:/data --env-file .env -e NODE_ENV=production wedding
-```
+**Export guest list** in the admin area is also a good habit before and after the day.
 
-**On Render, Railway or Fly.io:** create a Node web service from this repository. Set the start command to `npm start` and add the settings above. Attach a persistent disk or volume and point `DATA_DIR` at it. Without a persistent disk, replies are lost on every redeploy. Serve over HTTPS; these platforms do it for you.
+### Running locally or elsewhere
 
-**Backups.** Download **Export guest list** regularly. Also copy `wedding.db` from `DATA_DIR` while the site is stopped, or use `sqlite3 wedding.db ".backup backup.db"` while it runs.
+Without `DATABASE_URL` the site uses a SQLite file in `DATA_DIR`, which is handy on your own computer. Any other host that runs the Docker image works too; set the same values as environment variables.
 
 ## Security and privacy
 
@@ -124,14 +160,21 @@ photos/               Your original photos (not published)
 public/               Styles, scripts, fonts and prepared images
 src/app.js            Pages, RSVP and admin routes
 src/views/            The page templates
-src/db.js             The guest database (SQLite, built into Node)
+src/db.js             The guest database (Postgres, or SQLite locally)
 scripts/photos.js     Prepares photos
 test/                 Automated tests (npm test)
 design/               The three design directions
+deploy/               Production stack used by the GitHub workflow
 ```
 
 Run the tests with:
 
 ```bash
 npm test
+```
+
+To run them against Postgres as well, point `TEST_DATABASE_URL` at an empty database:
+
+```bash
+TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/wedding_test npm test
 ```

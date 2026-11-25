@@ -1,0 +1,54 @@
+# The production stack. The GitHub workflow copies this file to /opt/wedding on
+# the server, writes /opt/wedding/.env next to it, and runs `docker compose up`.
+#
+#   app    the website (image built by the workflow and pushed to GitHub Packages)
+#   db     Postgres, only when no external DATABASE_URL secret is given
+#   caddy  HTTPS: obtains and renews the certificate for DOMAIN automatically
+name: wedding
+
+services:
+  app:
+    image: ${IMAGE:?IMAGE is not set}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      TRUST_PROXY: "1"
+    expose:
+      - "3000"
+
+  db:
+    image: postgres:16-alpine
+    profiles: [bundled-db]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wedding
+      POSTGRES_DB: wedding
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wedding -d wedding"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    command: caddy reverse-proxy --from ${DOMAIN:?DOMAIN is not set} --to app:3000
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:

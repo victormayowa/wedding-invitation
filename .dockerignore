@@ -6,3 +6,5 @@ photos
 test
 design
 *.log
+.github
+deploy

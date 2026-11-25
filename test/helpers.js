@@ -30,6 +30,7 @@ export function testContent(overrides = {}) {
 }
 
 export const ADMIN_PASSWORD = 'correct-horse-battery';
+let servers = 0;
 
 /** Starts the real app on a random port with an in-memory database. */
 export async function startServer({ content = testContent(), now = '2026-11-20T12:00:00+01:00', showPlaceholders = false } = {}) {
@@ -45,7 +46,10 @@ export async function startServer({ content = testContent(), now = '2026-11-20T1
     showPlaceholders,
     now: () => new Date(current),
   };
-  const db = openDatabase(':memory:', { now: config.now });
+  // TEST_DATABASE_URL runs the same tests against Postgres, each server in its own schema.
+  const url = process.env.TEST_DATABASE_URL || '';
+  const schema = url ? `test_${process.pid}_${++servers}_${Math.random().toString(36).slice(2, 8)}` : undefined;
+  const db = await openDatabase({ url, schema, now: config.now });
   const app = createApp({ config, content, contentProblems: checkContent(content), db });
   const server = http.createServer(app.handler);
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -60,8 +64,9 @@ export async function startServer({ content = testContent(), now = '2026-11-20T1
     client: () => client(origin),
     close: () =>
       new Promise((resolve) => {
-        server.close(() => {
-          db.close();
+        server.close(async () => {
+          await db.dropSchema();
+          await db.close();
           resolve();
         });
       }),

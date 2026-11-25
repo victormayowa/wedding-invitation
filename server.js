@@ -18,7 +18,27 @@ if (problems.length) {
   console.warn(`\n  content/wedding.js needs attention:\n${problems.map((p) => `   • ${p}`).join('\n')}\n`);
 }
 
-const db = openDatabase(path.join(config.dataDir, 'wedding.db'), { now: config.now });
+/** Opens the database, waiting up to ~30 s for Postgres to accept connections (e.g. a container still starting). */
+async function connect() {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await openDatabase({
+        url: config.databaseUrl,
+        ssl: config.databaseSsl,
+        file: path.join(config.dataDir, 'wedding.db'),
+        now: config.now,
+      });
+    } catch (err) {
+      if (!config.databaseUrl || attempt >= 15) throw err;
+      console.warn(`  Waiting for the database (${err.message})`);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+  }
+}
+const db = await connect();
+if (config.production && !config.databaseUrl) {
+  console.warn('  DATABASE_URL is not set: guest data is kept in a SQLite file. Make sure DATA_DIR is on persistent storage.');
+}
 const app = createApp({ config, content, contentProblems: problems, db });
 
 const server = http.createServer(app.handler);
@@ -28,6 +48,7 @@ server.headersTimeout = 15_000;
 server.listen(config.port, config.host, () => {
   console.log(`\n  ${content.couple.first} & ${content.couple.second} is running at ${config.publicUrl}`);
   console.log(`  Admin: ${config.publicUrl}/admin`);
+  console.log(`  Database: ${db.dialect === 'postgres' ? 'Postgres' : `SQLite (${path.join(config.dataDir, 'wedding.db')})`}`);
   if (config.generatedPassword) {
     console.log(`  No ADMIN_PASSWORD set. Temporary password for this run: ${config.adminPassword}`);
   }
@@ -35,8 +56,8 @@ server.listen(config.port, config.host, () => {
 });
 
 function shutdown() {
-  server.close(() => {
-    db.close();
+  server.close(async () => {
+    await db.close();
     process.exit(0);
   });
   setTimeout(() => process.exit(0), 5000).unref();
