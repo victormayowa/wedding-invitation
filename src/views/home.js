@@ -15,8 +15,20 @@ import {
   whatsappHref,
   mapsDirectionsHref,
   mapsEmbedSrc,
+  icon,
+  button,
+  scribbleArrow,
   ROMAN,
 } from './parts.js';
+
+/* Section titles: a small label with the rings icon, then an uppercase heading
+   whose second part is set in wine. */
+function sectionTitle({ label, lead, accent, id, center = false }) {
+  return html`<div class="section-title${center ? ' section-title--center' : ''}">
+    <p class="eyebrow" data-fade>${icon('rings')}<span>${label}</span></p>
+    <h2 id="${id}" data-split>${lead}${accent ? html` <span class="accent">${accent}</span>` : ''}</h2>
+  </div>`;
+}
 
 /* ---------------------------------------------------------------- Hero */
 
@@ -31,7 +43,7 @@ function countdown(ctx) {
   ];
   const days = units[0][1];
   return html`<div class="countdown" data-countdown="${target.toISOString()}">
-    <p class="countdown__caption">Until the day</p>
+    <p class="countdown__caption">Counting down to the day</p>
     <p class="sr-only">${days === 0 ? 'Less than a day to go.' : `${days} ${days === 1 ? 'day' : 'days'} to go.`}</p>
     <ol class="countdown__units" aria-hidden="true">
       ${units.map(
@@ -44,63 +56,100 @@ function countdown(ctx) {
   </div>`;
 }
 
+/** One slide per prepared photo; the first carries the names, the rest the tagline. */
+function heroSlides(ctx) {
+  const c = ctx.content;
+  const images = [c.hero.image, ...(c.hero.slides || [])].filter((n) => ctx.images.get(n));
+  const sentences = String(c.tagline || '')
+    .split(/(?<=\.)\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const lines = [sentences.slice(0, 2).join(' '), sentences.slice(2).join(' ')].filter(Boolean);
+  return Array.from({ length: Math.max(1, images.length) }, (_, i) => ({
+    image: images[i] || null,
+    title: i === 0 || !lines.length ? null : lines[(i - 1) % lines.length],
+  }));
+}
+
 function hero(ctx) {
   const c = ctx.content;
-  const image = picture(ctx, c.hero.image, {
-    alt: c.hero.alt,
-    ratio: '4 / 5',
-    eager: true,
-    sizes: '(min-width: 900px) 40vw, 100vw',
-    reveal: false,
-  });
+  const slides = heroSlides(ctx);
   const reply = ctx.invite?.response ? 'Update your reply' : 'Reply to our invitation';
+  const eyebrow = ctx.invite ? html`An invitation for ${ctx.invite.name}` : c.codeName ? html`${c.codeName} · The wedding of` : 'The wedding of';
   const latest = ctx.announcements[0];
 
-  let moment;
+  let actions = '';
   if (ctx.phase === 'before') {
-    moment = html`${countdown(ctx)}
-      <div class="hero__actions">
-        ${ctx.rsvpOpen ? html`<a class="button" href="/rsvp">${reply}</a>` : ''}
-        ${ctx.has.story ? html`<a class="link" href="#story">Read our story</a>` : html`<a class="link" href="#celebration">The celebration</a>`}
-      </div>`;
+    actions = html`${ctx.rsvpOpen ? button(reply, '/rsvp') : ''}${button('The celebration', '#celebration', { variant: 'light' })}`;
   } else if (ctx.phase === 'today') {
-    moment = html`<p class="hero__moment">Today is the day. We can’t wait to see you.</p>
-      <div class="hero__actions"><a class="button" href="#celebration">Today’s celebration</a></div>`;
-  } else {
-    moment = html`<p class="hero__moment">Married on ${ctx.clock.dateLong(c.date)}.</p>
-      ${ctx.has.gallery ? html`<div class="hero__actions"><a class="button" href="#gallery">View the gallery</a></div>` : ''}`;
+    actions = button('Today’s celebration', '#celebration');
+  } else if (ctx.has.gallery) {
+    actions = button('View the gallery', '#gallery');
   }
 
-  return html`<section class="hero ${image ? 'hero--image' : 'hero--type'}" aria-labelledby="hero-title">
-    <div class="hero__grid">
-      ${latest
-        ? html`<a class="hero__notice" href="#updates"><span class="hero__notice-label">Update</span> ${latest.body}</a>`
-        : ''}
-      <div class="hero__head">
-        ${ctx.invite
-          ? html`<p class="hero__for" data-intro>An invitation for <span>${ctx.invite.name}</span></p>`
-          : html`<p class="hero__eyebrow" data-intro>The wedding of</p>`}
-        <h1 class="hero__names" id="hero-title" data-intro style="--d:1">
-          <span class="hero__line">${c.couple.first}</span>
-          <span class="hero__line hero__line--second"><span class="amp">&amp;</span>&#8202;${c.couple.second}</span>
-        </h1>
-      </div>
-      <p class="hero__when" data-intro style="--d:2">
-        <time datetime="${c.date}">${ctx.clock.dateLong(c.date)}</time>
-        <span class="hero__place">${c.place}</span>
-      </p>
-      ${image
-        ? html`<figure class="hero__figure" data-intro style="--d:2">
-            <div class="hero__frame" data-parallax>${image}</div>
-            ${filled(c.hero.credit) ? html`<figcaption class="caption">${c.hero.credit}</figcaption>` : ''}
-          </figure>`
-        : ''}
-      <div class="hero__details" data-intro style="--d:3">
-        <p class="hero__tagline">${c.tagline}</p>
-        ${moment}
+  let strip;
+  if (ctx.phase === 'before') strip = countdown(ctx);
+  else if (ctx.phase === 'today') strip = html`<p class="hero__moment">Today is the day. We can’t wait to see you.</p>`;
+  else strip = html`<p class="hero__moment">Married on ${ctx.clock.dateLong(c.date)}. Thank you for celebrating with us.</p>`;
+
+  const panels = slides.filter((s) => s.image);
+  return html`<section class="hero" aria-labelledby="hero-title" data-slider>
+    <div class="hero__backdrop" style="--panels:${Math.max(1, panels.length)}" aria-hidden="true">
+      ${panels.map(
+        (s, i) => html`<div class="hero__panel${i === 0 ? ' is-active' : ''}" data-panel>${picture(ctx, s.image, {
+          alt: '',
+          eager: i === 0,
+          sizes: `(min-width: 768px) ${Math.round(100 / panels.length)}vw, 100vw`,
+          reveal: false,
+          cls: 'media--cover',
+        })}</div>`,
+      )}
+    </div>
+    <div class="hero__slides">
+      ${slides.map(
+        (s, i) => html`<div class="hero__slide${i === 0 ? ' is-active' : ''}" data-slide${i ? raw(' aria-hidden="true"') : ''}>
+          <div class="container hero__content">
+            <p class="hero__eyebrow" data-fade>${eyebrow}</p>
+            ${i === 0
+              ? html`<h1 class="hero__title" id="hero-title" data-split>${coupleMark(c)}</h1>`
+              : html`<p class="hero__title" data-split>${s.title || coupleMark(c)}</p>`}
+            <p class="hero__text" data-fade style="--d:.25s">${ctx.clock.dateLong(c.date)} · ${c.place}</p>
+            ${actions ? html`<div class="hero__actions" data-fade style="--d:.5s">${actions}</div>` : ''}
+          </div>
+        </div>`,
+      )}
+    </div>
+    ${slides.length > 1
+      ? html`<div class="hero__dots" data-dots>
+          ${slides.map((_, i) => html`<button type="button" class="hero__dot${i === 0 ? ' is-active' : ''}" data-dot="${i}" aria-label="Show photo ${i + 1} of ${slides.length}"${i === 0 ? raw(' aria-current="true"') : ''}></button>`)}
+        </div>`
+      : ''}
+    <a class="hero__scroll" href="#invitation" aria-label="Scroll to the invitation"><span></span></a>
+    <div class="hero__strip">
+      <div class="container hero__strip-inner">
+        ${latest ? html`<a class="hero__notice" href="#updates"><span class="hero__notice-label">Update</span> ${latest.body}</a>` : ''}
+        ${strip}
       </div>
     </div>
   </section>`;
+}
+
+/* ---------------------------------------------------------------- Ticker */
+
+function ticker(ctx) {
+  const c = ctx.content;
+  const [y, m, d] = c.date.split('-');
+  const words = [
+    c.codeName,
+    `${c.couple.first} & ${c.couple.second}`,
+    `${d}.${m}.${y}`,
+    ...String(c.tagline || '')
+      .split(/(?<=\.)\s+/)
+      .map((s) => s.replace(/\.$/, '')),
+    c.place.split(',')[0],
+  ].filter(Boolean);
+  const run = html`<div class="ticker__run">${words.map((w) => html`<span class="ticker__word">${w}</span><span class="ticker__sep">${icon('rings')}</span>`)}</div>`;
+  return html`<div class="ticker" aria-hidden="true"><div class="ticker__track">${run}${run}</div></div>`;
 }
 
 /* ---------------------------------------------------------------- Invitation */
@@ -108,14 +157,43 @@ function hero(ctx) {
 function invitation(ctx) {
   const c = ctx.content;
   const families = (c.invitation.families || []).filter((f) => shows(f, ctx));
-  return html`<section class="invite" aria-label="Our invitation">
-    <div class="invite__inner">
-      <p class="invite__statement" data-reveal>${c.invitation.statement}</p>
-      ${families.length
-        ? html`<p class="invite__families" data-reveal style="--d:1">
-            ${families.map((f, i) => html`${i ? html`<span class="invite__and">and</span>` : ''}<span class="invite__family">${t(f, ctx)}</span>`)}
-          </p>`
+  const imgs = (c.invitation.images || []).filter((n) => ctx.images.get(n) || (ctx.preview && (isTbc(n) || filled(n))));
+  const [day, month] = ctx.clock.dayMonth(c.date).split(' ');
+  return html`<section class="section about" id="invitation" aria-labelledby="invite-title">
+    <div class="container about__grid${imgs.length ? '' : ' about__grid--text'}">
+      ${imgs.length
+        ? html`<div class="about__images">
+            <figure class="about__img about__img--main image-anime" data-curtain>${picture(ctx, imgs[0], { alt: c.hero.alt, ratio: '4 / 5', sizes: '(min-width: 992px) 34vw, 90vw', reveal: false })}</figure>
+            ${imgs[1] ? html`<figure class="about__img about__img--small image-anime" data-curtain>${picture(ctx, imgs[1], { alt: '', ratio: '1 / 1', sizes: '(min-width: 992px) 18vw, 45vw', reveal: false })}</figure>` : ''}
+            <p class="about__badge" data-fade style="--d:.5s"><strong>${day}</strong><span>${month} ${c.date.slice(0, 4)}</span></p>
+          </div>`
         : ''}
+      <div class="about__text">
+        ${sectionTitle({ label: ctx.invite ? html`An invitation for ${ctx.invite.name}` : 'Our invitation', lead: 'You are', accent: 'invited', id: 'invite-title' })}
+        <p class="about__statement" data-fade>${c.invitation.statement}</p>
+        ${families.length
+          ? html`<ul class="about__list">
+              ${families.map((f, i) => html`<li data-fade style="--d:${0.25 * (i + 1)}s"><span class="icon-box">${icon('heart')}</span><span>${t(f, ctx)}</span></li>`)}
+            </ul>`
+          : ''}
+        ${ctx.rsvpOpen && ctx.phase === 'before'
+          ? html`<div class="about__actions" data-fade style="--d:.5s">${button(ctx.invite?.response ? 'Update your reply' : 'Reply to our invitation', '/rsvp')}</div>`
+          : ''}
+      </div>
+    </div>
+  </section>`;
+}
+
+/* ---------------------------------------------------------------- CTA band */
+
+function ctaBand({ title, label, href }) {
+  return html`<section class="cta-band" aria-label="${title}">
+    <div class="container cta-band__inner">
+      <h2 class="cta-band__title" data-split>${title}</h2>
+      <div class="cta-band__action" data-fade>
+        ${scribbleArrow()}
+        ${button(label, href, { variant: 'light' })}
+      </div>
     </div>
   </section>`;
 }
@@ -127,32 +205,24 @@ function story(ctx) {
   const chapters = c.story.chapters.filter((ch) => shows(ch.body, ctx));
   if (!chapters.length) return '';
   return html`<section class="section story" id="story" aria-labelledby="story-title">
-    <div class="story__grid">
-      <header class="story__head">
-        <p class="label" data-reveal>Our story</p>
-        <h2 class="section-title" id="story-title" data-reveal style="--d:1">A few chapters, so far</h2>
-        ${shows(c.story.intro, ctx) ? html`<p class="lead" data-reveal style="--d:2">${t(c.story.intro, ctx)}</p>` : ''}
-      </header>
-      <ol class="chapters">
+    <div class="container">
+      <div class="section-row">
+        ${sectionTitle({ label: 'Our story', lead: 'A few chapters,', accent: 'so far', id: 'story-title' })}
+        ${shows(c.story.intro, ctx) ? html`<p class="section-intro" data-fade>${t(c.story.intro, ctx)}</p>` : ''}
+      </div>
+      <ol class="timeline">
         ${chapters.map((ch, i) => {
-          const wide = ch.layout === 'wide';
           const img = shows(ch.image, ctx)
-            ? picture(ctx, ch.image, {
-                alt: ch.alt || ch.title,
-                ratio: wide ? '3 / 2' : '4 / 5',
-                sizes: wide ? '(min-width: 900px) 60vw, 100vw' : '(min-width: 900px) 24vw, 100vw',
-              })
+            ? picture(ctx, ch.image, { alt: ch.alt || ch.title, ratio: '4 / 3', sizes: '(min-width: 992px) 30vw, 90vw', reveal: false })
             : '';
-          return html`<li class="chapter chapter--${wide ? 'wide' : 'side'}${img ? '' : ' chapter--text'}">
-            <p class="chapter__marker" data-reveal>
-              <span class="chapter__numeral">${ROMAN[i] || i + 1}.</span>
-              ${shows(ch.when, ctx) ? html`<span class="chapter__when">${t(ch.when, ctx)}</span>` : ''}
-            </p>
-            <div class="chapter__text" data-reveal style="--d:1">
-              <h3 class="chapter__title">${ch.title}</h3>
-              ${paras(ch.body, ctx, 'chapter__body')}
+          return html`<li class="timeline__item${img ? '' : ' timeline__item--text'}">
+            <span class="timeline__num" data-fade>${ROMAN[i] || i + 1}</span>
+            <div class="timeline__body" data-fade style="--d:.25s">
+              ${shows(ch.when, ctx) ? html`<p class="timeline__when">${t(ch.when, ctx)}</p>` : ''}
+              <h3 class="timeline__title">${ch.title}</h3>
+              ${paras(ch.body, ctx, 'timeline__text')}
             </div>
-            ${img ? html`<figure class="chapter__figure">${img}${filled(ch.caption) ? html`<figcaption class="caption">${ch.caption}</figcaption>` : ''}</figure>` : ''}
+            ${img ? html`<figure class="timeline__img image-anime" data-curtain>${img}</figure>` : ''}
           </li>`;
         })}
       </ol>
@@ -164,19 +234,25 @@ function story(ctx) {
 
 function timeRange(ctx, e) {
   if (!isTime(e.start)) return '';
-  return isTime(e.end) && e.end > e.start
-    ? `${ctx.clock.time(e.start)} – ${ctx.clock.time(e.end)}`
-    : ctx.clock.time(e.start);
+  return isTime(e.end) && e.end > e.start ? `${ctx.clock.time(e.start)} – ${ctx.clock.time(e.end)}` : ctx.clock.time(e.start);
 }
 
 function accessNote(ctx, e) {
-  const invited = ctx.invite?.events.includes(e.id);
-  if (e.access === 'open') return html`<p class="event__access">Open to all our guests</p>`;
-  if (invited) return html`<p class="event__access event__access--yours">Included in your invitation</p>`;
-  return html`<p class="event__access event__access--restricted">By invitation</p>`;
+  if (e.access === 'open') return html`<p class="tag">Open to all our guests</p>`;
+  if (ctx.invite?.events.includes(e.id)) return html`<p class="tag tag--accent">Included in your invitation</p>`;
+  return html`<p class="tag tag--accent">By invitation</p>`;
 }
 
-function eventBlock(ctx, e) {
+/** A stripe of the event's own colours across the top of its card. */
+function colourBand(colours) {
+  const list = (colours || []).map((s) => safeColor(s.hex)).filter(Boolean);
+  if (!list.length) return '';
+  const step = 100 / list.length;
+  const stops = list.map((col, i) => `${col} ${(i * step).toFixed(2)}% ${((i + 1) * step).toFixed(2)}%`).join(', ');
+  return raw(` style="--band:linear-gradient(90deg, ${stops})"`);
+}
+
+function eventCard(ctx, e, i) {
   const v = e.venue || {};
   const query = filled(v.mapQuery) ? v.mapQuery : [v.name, v.address].filter(filled).join(', ');
   const time = timeRange(ctx, e);
@@ -187,95 +263,58 @@ function eventBlock(ctx, e) {
     ['Getting there', v.transport],
     ['Please note', e.notes],
   ].filter(([, val]) => shows(val, ctx));
-  const venueImage = shows(v.image, ctx)
-    ? picture(ctx, v.image, { alt: filled(v.name) ? v.name : e.name, ratio: '3 / 2', sizes: '(min-width: 900px) 30vw, 100vw' })
-    : '';
-  const hasMore = extras.length || query || venueImage;
-
-  return html`<article class="event" id="event-${e.id}" data-reveal>
-    <header class="event__head">
-      <h3 class="event__name">${e.name}</h3>
-      ${accessNote(ctx, e)}
-      ${e.status === 'draft' ? html`<p class="draft-flag">Draft: hidden from guests until confirmed</p>` : ''}
-    </header>
-    <dl class="event__facts">
-      <div class="event__fact">
-        <dt>When</dt>
-        <dd>
-          ${isIsoDate(e.date) ? ctx.clock.dateMedium(e.date) : t(e.date, ctx)}
-          ${time ? html`<span class="event__time">${time}</span>` : shows(e.start, ctx) ? html`<span class="event__time">${t(e.start, ctx)}</span>` : html`<span class="event__time event__time--tbc">Time to follow</span>`}
-        </dd>
+  const [day, month] = isIsoDate(e.date) ? ctx.clock.dayMonth(e.date).split(' ') : ['', ''];
+  const swatches = (dress.colours || []).filter((s) => safeColor(s.hex));
+  return html`<article class="event-card" id="event-${e.id}" data-fade${colourBand(dress.colours)}>
+    <div class="event-card__band" aria-hidden="true"></div>
+    <div class="event-card__head">
+      ${day ? html`<p class="event-card__date"><strong>${day}</strong><span>${month.slice(0, 3)}</span></p>` : ''}
+      <div>
+        <h3 class="event-card__name">${e.name}</h3>
+        ${accessNote(ctx, e)}
+        ${e.status === 'draft' ? html`<p class="draft-flag">Draft: hidden from guests until confirmed</p>` : ''}
       </div>
-      <div class="event__fact">
-        <dt>Where</dt>
-        <dd>
-          ${shows(v.name, ctx) ? html`<span class="event__venue">${t(v.name, ctx)}</span>` : html`<span class="event__venue event__time--tbc">Venue to follow</span>`}
-          ${shows(v.address, ctx) ? html`<span class="event__address">${t(v.address, ctx)}</span>` : ''}
-        </dd>
-      </div>
-      ${shows(dress.title, ctx) || shows(dress.description, ctx)
-        ? html`<div class="event__fact">
-            <dt>Dress code</dt>
-            <dd>
-              ${shows(dress.title, ctx) ? html`<span class="event__dress">${t(dress.title, ctx)}</span>` : ''}
-              ${ctx.has.dress ? html`<a class="event__aside" href="#dress-code">Colours &amp; guidance</a>` : ''}
-            </dd>
-          </div>`
-        : ''}
-    </dl>
-    <div class="event__actions">
-      ${query ? html`<a class="link" href="${mapsDirectionsHref(query)}" rel="noopener" target="_blank">Directions<span class="sr-only"> to ${e.name} (opens Google Maps)</span></a>` : ''}
-      ${calendarReady(e) ? html`<a class="link" href="/calendar/${e.id}.ics">Add to calendar</a>` : ''}
     </div>
-    ${hasMore
-      ? html`<details class="event__more" data-event-more>
-          <summary><span>Venue, map &amp; arrival</span></summary>
-          <div class="event__more-grid">
-            ${query
-              ? html`<div class="event__map" data-map="${mapsEmbedSrc(query)}" data-map-title="Map of ${filled(v.name) ? v.name : e.name}">
-                  <a class="event__map-fallback" href="${mapsDirectionsHref(query)}" rel="noopener" target="_blank">Open the map in Google Maps</a>
-                </div>`
-              : ''}
-            <div class="event__notes">
-              ${venueImage}
-              ${extras.length
-                ? html`<dl>${extras.map(([label, val]) => html`<div><dt>${label}</dt><dd>${paras(val, ctx)}</dd></div>`)}</dl>`
-                : ''}
-            </div>
-          </div>
+    <ul class="event-card__facts">
+      <li>${icon('calendar')}<span>${isIsoDate(e.date) ? ctx.clock.dateMedium(e.date) : shows(e.date, ctx) ? t(e.date, ctx) : 'Date to follow'}</span></li>
+      <li>${icon('clock')}<span>${time || (shows(e.start, ctx) ? t(e.start, ctx) : 'Time to follow')}</span></li>
+      <li>${icon('pin')}<span>${shows(v.name, ctx) ? html`<strong>${t(v.name, ctx)}</strong>` : 'Venue to follow'}${shows(v.address, ctx) ? html`<br>${t(v.address, ctx)}` : ''}</span></li>
+      ${shows(dress.title, ctx) || swatches.length
+        ? html`<li>${icon('dress')}<span>${shows(dress.title, ctx) ? t(dress.title, ctx) : 'Colours'}${swatches.length ? html`<span class="mini-swatches">${swatches.map((s) => html`<span class="mini-swatch" style="--c:${safeColor(s.hex)}" title="${s.name}"></span>`)}</span>` : ''}</span></li>`
+        : ''}
+    </ul>
+    <div class="event-card__actions">
+      ${query ? button('Directions', mapsDirectionsHref(query), { variant: 'sm', attrs: 'target="_blank" rel="noopener"' }) : ''}
+      ${calendarReady(e) ? html`<a class="text-link" href="/calendar/${e.id}.ics">${icon('calendar')} Add to calendar</a>` : ''}
+    </div>
+    ${query || extras.length
+      ? html`<details class="event-card__more" data-event-more>
+          <summary>Venue, map &amp; arrival <span class="plus" aria-hidden="true">${icon('plus')}</span></summary>
+          ${query
+            ? html`<div class="event-card__map" data-map="${mapsEmbedSrc(query)}" data-map-title="Map of ${filled(v.name) ? v.name : e.name}">
+                <a class="event-card__map-fallback" href="${mapsDirectionsHref(query)}" rel="noopener" target="_blank">Open the map in Google Maps</a>
+              </div>`
+            : ''}
+          ${extras.length ? html`<dl class="event-card__notes">${extras.map(([label, val]) => html`<div><dt>${label}</dt><dd>${paras(val, ctx)}</dd></div>`)}</dl>` : ''}
         </details>`
       : ''}
   </article>`;
 }
 
-/** "Saturday 28 November", or a span such as "27 – 28 November" when events fall on several days. */
-function celebrationDates(ctx, events) {
-  const dates = [...new Set(events.map((e) => e.date).filter(isIsoDate))].sort();
-  if (dates.length < 2) return ctx.clock.dateMedium(dates[0] || ctx.content.date);
-  const first = dates[0];
-  const last = dates[dates.length - 1];
-  return first.slice(0, 7) === last.slice(0, 7)
-    ? `${Number(first.slice(8))} – ${ctx.clock.dayMonth(last)}`
-    : `${ctx.clock.dayMonth(first)} – ${ctx.clock.dayMonth(last)}`;
-}
-
 function celebration(ctx) {
   const c = ctx.content;
   const events = ctx.events;
-  return html`<section class="section section--oat celebration" id="celebration" aria-labelledby="celebration-title">
-    <div class="celebration__inner">
-      <header class="celebration__head">
-        <p class="label" data-reveal>The celebration</p>
-        <h2 class="section-title" id="celebration-title" data-reveal style="--d:1">${celebrationDates(ctx, events)}</h2>
-        <p class="lead celebration__lead" data-reveal style="--d:2">
+  return html`<section class="section section--blush celebration" id="celebration" aria-labelledby="celebration-title">
+    <div class="container">
+      <div class="section-row section-row--center">
+        ${sectionTitle({ label: ctx.clock.dateLong(c.date), lead: 'The', accent: 'celebration', id: 'celebration-title', center: true })}
+        <p class="section-intro section-intro--center" data-fade>
           ${events.length
-            ? events.length === 1
-              ? 'The time, the place and how to get there.'
-              : 'Times, venues and directions for every part of the celebration.'
+            ? 'Times, venues and directions for every part of the celebration.'
             : 'Full details of the celebration will be shared here shortly.'}
         </p>
-      </header>
-      ${events.length ? html`<div class="events">${events.map((e) => eventBlock(ctx, e))}</div>` : ''}
+      </div>
+      ${events.length ? html`<div class="event-grid">${events.map((e, i) => eventCard(ctx, e, i))}</div>` : ''}
     </div>
   </section>`;
 }
@@ -292,41 +331,34 @@ function swatch(ctx, s) {
 }
 
 function dressCode(ctx) {
-  const c = ctx.content;
-  const d = c.dressCode || {};
-  const palette = (d.palette || []).map((s) => swatch(ctx, s)).filter(Boolean);
+  const d = ctx.content.dressCode || {};
+  const themes = (d.themes || [])
+    .map((th) => ({ ...th, items: (th.colours || []).map((s) => swatch(ctx, s)).filter(Boolean) }))
+    .filter((th) => th.items.length);
   const notes = (d.notes || []).filter((n) => shows(n, ctx));
-  const items = ctx.events.filter((e) => shows(e.dressCode?.title, ctx) || shows(e.dressCode?.description, ctx));
-  if (!palette.length && !notes.length && !items.length && !shows(d.intro, ctx)) return '';
+  const items = ctx.events.filter((e) => shows(e.dressCode?.description, ctx));
+  if (!themes.length && !notes.length && !items.length && !shows(d.intro, ctx)) return '';
   return html`<section class="section attire" id="dress-code" aria-labelledby="attire-title">
-    <div class="attire__inner">
-      <header class="attire__head">
-        <p class="label" data-reveal>Dress code</p>
-        <h2 class="section-title" id="attire-title" data-reveal style="--d:1">What to wear</h2>
-        ${shows(d.intro, ctx) ? html`<p class="lead" data-reveal style="--d:2">${t(d.intro, ctx)}</p>` : ''}
-      </header>
-      ${palette.length
-        ? html`<div class="attire__palette" data-reveal>
-            <p class="label">Our colours</p>
-            <ul class="swatches swatches--large">${palette}</ul>
+    <div class="container">
+      <div class="section-row section-row--center">
+        ${sectionTitle({ label: 'Dress code', lead: 'Our', accent: 'colours', id: 'attire-title', center: true })}
+        ${shows(d.intro, ctx) ? html`<p class="section-intro section-intro--center" data-fade>${t(d.intro, ctx)}</p>` : ''}
+      </div>
+      ${themes.length
+        ? html`<div class="theme-grid">
+            ${themes.map(
+              (th) => html`<article class="theme-card" data-fade>
+                <h3 class="theme-card__title">${shows(th.title, ctx) ? t(th.title, ctx) : (th.colours || []).map((s) => (filled(s.name) ? s.name : '')).filter(Boolean).join(' & ')}</h3>
+                <ul class="swatches">${th.items}</ul>
+              </article>`,
+            )}
           </div>`
         : ''}
-      ${items.length
-        ? html`<div class="attire__list">
-            ${items.map((e, i) => {
-              const dc = e.dressCode;
-              const sw = (dc.colours || []).map((s) => swatch(ctx, s)).filter(Boolean);
-              return html`<article class="attire__item" data-reveal style="--d:${i}">
-                <p class="label">${e.name}</p>
-                ${shows(dc.title, ctx) ? html`<h3 class="attire__title">${t(dc.title, ctx)}</h3>` : ''}
-                ${paras(dc.description, ctx, 'attire__desc')}
-                ${sw.length ? html`<ul class="swatches">${sw}</ul>` : ''}
-              </article>`;
-            })}
+      ${items.length || notes.length
+        ? html`<div class="attire-notes">
+            ${items.map((e) => html`<div class="attire-note" data-fade><h3>${e.name}${shows(e.dressCode.title, ctx) ? html`: ${t(e.dressCode.title, ctx)}` : ''}</h3>${paras(e.dressCode.description, ctx)}</div>`)}
+            ${notes.map((n) => html`<div class="attire-note" data-fade>${paras(n, ctx)}</div>`)}
           </div>`
-        : ''}
-      ${notes.length
-        ? html`<div class="attire__notes" data-reveal>${notes.map((n) => paras(n, ctx, 'attire__note'))}</div>`
         : ''}
     </div>
   </section>`;
@@ -340,20 +372,18 @@ function gallery(ctx) {
     .map((a) => ({ ...a, images: a.images.filter((im) => ctx.images.get(im.src)) }))
     .filter((a) => a.images.length);
 
+  const head = (filters = '') => html`<div class="section-row gallery__head">
+    ${sectionTitle({ label: 'Gallery', lead: 'Moments', accent: 'together', id: 'gallery-title' })}
+    ${filters}
+  </div>`;
+
   if (!albums.length) {
     if (!ctx.preview) return '';
     return html`<section class="section gallery" id="gallery" aria-labelledby="gallery-title">
-      <div class="gallery__inner">
-        <header class="gallery__head">
-          <div>
-            <p class="label">Gallery</p>
-            <h2 class="section-title" id="gallery-title">Moments together</h2>
-          </div>
-        </header>
+      <div class="container">${head()}
         <div class="gallery__plates">
           ${plate('Engagement photographs: gallery.albums', '3 / 2')}
           ${plate('Pre-wedding shoot', '4 / 5')}
-          ${plate('Favourite moments', '4 / 5')}
           ${plate('Add photos to /photos, run npm run photos, then list them in content/wedding.js', '3 / 2')}
         </div>
       </div>
@@ -370,34 +400,28 @@ function gallery(ctx) {
       const film = img.video;
       const label = im.alt || a.title;
       return html`<li class="gallery__item${film ? ' gallery__item--film' : ''}" style="--ar:${(img.w / img.h).toFixed(4)}" data-album="${a.id}">
-        <a class="gallery__open" href="${film ? film.src : full}" data-index="${i}" data-srcset="${webp}" data-src="${full}"${film ? html` data-video="${film.src}"` : ''} data-caption="${im.caption || ''}" data-alt="${im.alt || ''}" aria-label="${film ? `Play film: ${label}` : `View photo: ${label}`}">
-          ${picture(ctx, im.src, { alt: im.alt || '', sizes: '(min-width: 900px) 25vw, 50vw', reveal: false })}
-          ${film ? html`<span class="gallery__film" aria-hidden="true">Film · ${Math.floor(film.duration / 60)}:${String(film.duration % 60).padStart(2, '0')}</span>` : ''}
+        <a class="gallery__open image-anime" href="${film ? film.src : full}" data-index="${i}" data-srcset="${webp}" data-src="${full}"${film ? html` data-video="${film.src}"` : ''} data-caption="${im.caption || ''}" data-alt="${im.alt || ''}" aria-label="${film ? `Play film: ${label}` : `View photo: ${label}`}">
+          ${picture(ctx, im.src, { alt: im.alt || '', sizes: '(min-width: 992px) 25vw, 50vw', reveal: false })}
+          ${film ? html`<span class="gallery__film" aria-hidden="true">${icon('play')} ${Math.floor(film.duration / 60)}:${String(film.duration % 60).padStart(2, '0')}</span>` : ''}
         </a>
       </li>`;
     }),
   );
 
   return html`<section class="section gallery" id="gallery" aria-labelledby="gallery-title">
-    <div class="gallery__inner">
-      <header class="gallery__head">
-        <div>
-          <p class="label" data-reveal>Gallery</p>
-          <h2 class="section-title" id="gallery-title" data-reveal style="--d:1">Moments together</h2>
-        </div>
-        ${albums.length > 1
+    <div class="container">
+      ${head(
+        albums.length > 1
           ? html`<div class="gallery__filters" role="group" aria-label="Albums" data-gallery-filters>
               <button type="button" aria-pressed="true" data-album="all">All</button>
               ${albums.map((a) => html`<button type="button" aria-pressed="false" data-album="${a.id}">${a.title}</button>`)}
             </div>`
-          : ''}
-      </header>
-      <ul class="gallery__grid" data-gallery data-reveal>${items}</ul>
+          : '',
+      )}
+      <ul class="gallery__grid" data-gallery data-fade>${items}</ul>
     </div>
     <dialog class="lightbox" data-lightbox aria-label="Photo viewer">
-      <div class="lightbox__stage">
-        <img class="lightbox__img" alt="" data-lightbox-img>
-      </div>
+      <div class="lightbox__stage"><img class="lightbox__img" alt="" data-lightbox-img></div>
       <div class="lightbox__bar">
         <p class="lightbox__caption" data-lightbox-caption></p>
         <p class="lightbox__count" data-lightbox-count></p>
@@ -413,13 +437,13 @@ function gallery(ctx) {
 
 /* ---------------------------------------------------------------- Guest information */
 
-function guestBlock(id, title, intro, body) {
-  return html`<div class="guests__block" id="${id}">
-    <div class="guests__block-head" data-reveal>
-      <h3 class="guests__title">${title}</h3>
-      ${intro || ''}
+function infoBlock(id, iconName, title, body, intro = '') {
+  return html`<div class="info-block" id="${id}" data-fade>
+    <div class="info-block__head">
+      <span class="icon-box icon-box--lg">${icon(iconName)}</span>
+      <div><h3 class="info-block__title">${title}</h3>${intro}</div>
     </div>
-    <div class="guests__block-body" data-reveal style="--d:1">${body}</div>
+    <div class="info-block__body">${body}</div>
   </div>`;
 }
 
@@ -429,10 +453,10 @@ function guests(ctx) {
 
   if (ctx.announcements.length) {
     blocks.push(
-      guestBlock(
+      infoBlock(
         'updates',
+        'mail',
         'Latest updates',
-        '',
         html`<ol class="updates">${ctx.announcements.map(
           (a) => html`<li class="updates__item"><time class="updates__date" datetime="${a.createdAt}">${ctx.clock.dayMonth(ctx.clock.day(new Date(a.createdAt)))}</time><p>${a.body}</p></li>`,
         )}</ol>`,
@@ -445,32 +469,27 @@ function guests(ctx) {
   const routes = (tr.routes || []).filter((r) => shows(r.body, ctx));
   if (hotels.length || routes.length || shows(tr.intro, ctx)) {
     blocks.push(
-      guestBlock(
+      infoBlock(
         'travel',
+        'bed',
         'Travel & stay',
-        shows(tr.intro, ctx) ? html`<p class="guests__intro">${t(tr.intro, ctx)}</p>` : '',
         html`${hotels.length
           ? html`<ul class="hotels">${hotels.map(
               (h) => html`<li class="hotel">
-                <div class="hotel__main">
-                  <p class="hotel__name">${t(h.name, ctx)}</p>
-                  ${shows(h.note, ctx) ? html`<p class="hotel__note">${t(h.note, ctx)}</p>` : ''}
-                </div>
-                <div class="hotel__meta">
-                  ${shows(h.address, ctx) ? html`<p>${t(h.address, ctx)}</p>` : ''}
-                  ${shows(h.price, ctx) ? html`<p class="hotel__price">${t(h.price, ctx)}</p>` : ''}
-                </div>
-                <div class="hotel__links">
-                  ${filled(h.phone) ? html`<a class="link" href="${telHref(h.phone)}">${h.phone}</a>` : shows(h.phone, ctx) ? html`<p>${t(h.phone, ctx)}</p>` : ''}
-                  ${filled(h.url) ? html`<a class="link" href="${h.url}" rel="noopener" target="_blank">Book</a>` : shows(h.url, ctx) ? html`<p>${t(h.url, ctx)}</p>` : ''}
-                </div>
+                <p class="hotel__name">${t(h.name, ctx)}</p>
+                ${shows(h.note, ctx) ? html`<p class="hotel__note">${t(h.note, ctx)}</p>` : ''}
+                ${shows(h.address, ctx) ? html`<p>${t(h.address, ctx)}</p>` : ''}
+                ${shows(h.price, ctx) ? html`<p class="hotel__price">${t(h.price, ctx)}</p>` : ''}
+                <p class="hotel__links">
+                  ${filled(h.phone) ? html`<a class="text-link" href="${telHref(h.phone)}">${icon('phone')} ${h.phone}</a>` : t(h.phone, ctx)}
+                  ${filled(h.url) ? html`<a class="text-link" href="${h.url}" rel="noopener" target="_blank">Book ${icon('arrow')}</a>` : t(h.url, ctx)}
+                </p>
               </li>`,
             )}</ul>`
           : ''}
-        ${routes.length
-          ? html`<dl class="routes">${routes.map((r) => html`<div class="routes__item"><dt>${r.title}</dt><dd>${paras(r.body, ctx)}</dd></div>`)}</dl>`
-          : ''}
-        ${shows(tr.help, ctx) ? html`<p class="guests__help">${t(tr.help, ctx)}</p>` : ''}`,
+        ${routes.length ? html`<dl class="routes">${routes.map((r) => html`<div><dt>${r.title}</dt><dd>${paras(r.body, ctx)}</dd></div>`)}</dl>` : ''}
+        ${shows(tr.help, ctx) ? html`<p class="info-block__help">${t(tr.help, ctx)}</p>` : ''}`,
+        shows(tr.intro, ctx) ? html`<p class="info-block__intro">${t(tr.intro, ctx)}</p>` : '',
       ),
     );
   }
@@ -478,13 +497,13 @@ function guests(ctx) {
   const faqs = (c.faqs || []).filter((f) => shows(f.a, ctx));
   if (faqs.length) {
     blocks.push(
-      guestBlock(
+      infoBlock(
         'questions',
+        'chat',
         'Questions',
-        '',
         html`<div class="faqs">${faqs.map(
           (f) => html`<details class="faq">
-            <summary class="faq__q"><span>${f.q}</span></summary>
+            <summary class="faq__q"><span>${f.q}</span><span class="plus" aria-hidden="true">${icon('plus')}</span></summary>
             <div class="faq__a">${paras(f.a, ctx)}</div>
           </details>`,
         )}</div>`,
@@ -495,35 +514,35 @@ function guests(ctx) {
   const contacts = (c.contacts || []).filter((p) => shows(p.name, ctx) || filled(p.phone));
   if (contacts.length || filled(c.email)) {
     blocks.push(
-      guestBlock(
+      infoBlock(
         'contact',
+        'people',
         'Contact',
-        html`<p class="guests__intro">For anything at all about the day, please reach out.</p>`,
         html`<ul class="contacts">${contacts.map(
           (p) => html`<li class="contact">
             <p class="contact__role">${p.role}</p>
             <p class="contact__name">${t(p.name, ctx)}</p>
             <p class="contact__links">
               ${filled(p.phone)
-                ? html`<a class="link" href="${telHref(p.phone)}">${p.phone}</a>
-                    ${p.whatsapp ? html`<a class="link" href="${whatsappHref(p.phone)}" rel="noopener" target="_blank">WhatsApp<span class="sr-only"> ${filled(p.name) ? p.name : p.role}</span></a>` : ''}`
+                ? html`<a class="text-link" href="${telHref(p.phone)}">${icon('phone')} ${p.phone}</a>
+                    ${p.whatsapp ? html`<a class="text-link" href="${whatsappHref(p.phone)}" rel="noopener" target="_blank">${icon('chat')} WhatsApp<span class="sr-only"> ${filled(p.name) ? p.name : p.role}</span></a>` : ''}`
                 : t(p.phone, ctx)}
             </p>
           </li>`,
         )}</ul>
-        ${filled(c.email) ? html`<p class="contacts__email">Or write to us at <a class="link" href="mailto:${c.email}">${c.email}</a></p>` : shows(c.email, ctx) ? html`<p class="contacts__email">${t(c.email, ctx)}</p>` : ''}`,
+        ${filled(c.email) ? html`<p class="contacts__email"><a class="text-link" href="mailto:${c.email}">${icon('mail')} ${c.email}</a></p>` : shows(c.email, ctx) ? html`<p>${t(c.email, ctx)}</p>` : ''}`,
+        html`<p class="info-block__intro">For anything at all about the day, please reach out.</p>`,
       ),
     );
   }
 
   if (!blocks.length) return '';
-  return html`<section class="section guests" id="guests" aria-labelledby="guests-title">
-    <div class="guests__inner">
-      <header class="guests__head">
-        <p class="label" data-reveal>For our guests</p>
-        <h2 class="section-title" id="guests-title" data-reveal style="--d:1">Good to know</h2>
-      </header>
-      ${blocks}
+  return html`<section class="section section--mist guests" id="guests" aria-labelledby="guests-title">
+    <div class="container">
+      <div class="section-row section-row--center">
+        ${sectionTitle({ label: 'For our guests', lead: 'Good to', accent: 'know', id: 'guests-title', center: true })}
+      </div>
+      <div class="info-grid">${blocks}</div>
     </div>
   </section>`;
 }
@@ -537,26 +556,31 @@ function gifts(ctx) {
   const details = (g.details || []).filter((d) => (d.lines || []).some((l) => shows(l, ctx)));
   const hasRealDetails = (g.details || []).some((d) => (d.lines || []).some(filled)) || filled(g.registry?.url);
   const registry = filled(g.registry?.url) ? g.registry : null;
-
-  return html`<section class="section section--oat gifts" id="gifts" aria-labelledby="gifts-title">
-    <div class="gifts__inner">
-      <p class="label" data-reveal id="gifts-title">Gifts</p>
-      <p class="gifts__message" data-reveal style="--d:1">${g.message}</p>
-      ${canSee && (details.length || registry)
-        ? html`<div class="gifts__details" data-reveal style="--d:2">
-            ${filled(g.detailsIntro) ? html`<p class="gifts__intro">${g.detailsIntro}</p>` : ''}
+  const showDetails = canSee && (details.length || registry);
+  return html`<section class="section gifts" id="gifts" aria-labelledby="gifts-title">
+    <div class="container gifts__grid${showDetails ? '' : ' gifts__grid--text'}">
+      <div class="gifts__text">
+        ${sectionTitle({ label: 'Gifts', lead: 'With', accent: 'gratitude', id: 'gifts-title' })}
+        <p class="gifts__message" data-fade>${g.message}</p>
+        ${showDetails
+          ? filled(g.detailsIntro) ? html`<p class="gifts__intro" data-fade>${g.detailsIntro}</p>` : ''
+          : hasRealDetails
+            ? html`<p class="gifts__intro" data-fade>Gift details are included with your personal invitation.</p>`
+            : ''}
+      </div>
+      ${showDetails
+        ? html`<div class="gifts__cards">
             ${details.map(
-              (d) => html`<div class="gift">
-                <p class="label">${d.label}</p>
-                <p class="gift__lines">${d.lines.filter((l) => shows(l, ctx)).map((l, i) => html`${i ? html`<br>` : ''}${t(l, ctx)}`)}</p>
-                ${d.lines.some(filled) ? html`<button class="link gift__copy" type="button" data-copy="${d.lines.filter(filled).join('\n')}">Copy details</button>` : ''}
+              (d, i) => html`<div class="gift-card" data-fade style="--d:${0.25 * i}s">
+                <span class="icon-box">${icon('gift')}</span>
+                <p class="gift-card__label">${d.label}</p>
+                <p class="gift-card__lines">${d.lines.filter((l) => shows(l, ctx)).map((l, j) => html`${j ? html`<br>` : ''}${t(l, ctx)}`)}</p>
+                ${d.lines.some(filled) ? html`<button class="text-link gift__copy" type="button" data-copy="${d.lines.filter(filled).join('\n')}">Copy details</button>` : ''}
               </div>`,
             )}
-            ${registry ? html`<p class="gift"><a class="link" href="${registry.url}" rel="noopener" target="_blank">${registry.label || 'Gift registry'}</a></p>` : ''}
+            ${registry ? html`<div class="gift-card" data-fade>${button(registry.label || 'Gift registry', registry.url, { attrs: 'target="_blank" rel="noopener"' })}</div>` : ''}
           </div>`
-        : hasRealDetails
-          ? html`<p class="gifts__intro" data-reveal style="--d:2">Gift details are included with your personal invitation.</p>`
-          : ''}
+        : ''}
     </div>
   </section>`;
 }
@@ -566,16 +590,14 @@ function gifts(ctx) {
 function closing(ctx) {
   const c = ctx.content;
   const message = ctx.phase === 'after' && filled(c.closing.after) ? c.closing.after : c.closing.message;
+  const bg = [c.closing.image, ...(c.hero.slides || []), c.hero.image].find((n) => ctx.images.get(n));
   return html`<section class="closing" aria-label="With love">
-    <div class="closing__inner">
-      <p class="closing__message" data-reveal>${message}</p>
-      <p class="closing__signoff" data-reveal style="--d:1">
-        <span class="closing__with">${c.closing.signoff}</span>
-        <span class="closing__names">${coupleMark(c)}</span>
-      </p>
-      ${ctx.rsvpOpen && ctx.phase === 'before'
-        ? html`<a class="button button--light" href="/rsvp" data-reveal style="--d:2">${ctx.invite?.response ? 'Update your reply' : 'Reply to our invitation'}</a>`
-        : ''}
+    ${bg ? html`<div class="closing__bg" data-parallax>${picture(ctx, bg, { alt: '', sizes: '100vw', reveal: false, cls: 'media--cover' })}</div>` : ''}
+    <div class="container closing__inner">
+      <p class="eyebrow eyebrow--light" data-fade>${icon('rings')}<span>${c.codeName || 'With love'}</span></p>
+      <p class="closing__message" data-split>${message}</p>
+      <p class="closing__signoff" data-fade style="--d:.25s"><span>${c.closing.signoff}</span> <strong>${coupleMark(c)}</strong></p>
+      ${ctx.rsvpOpen && ctx.phase === 'before' ? html`<div data-fade style="--d:.5s">${button(ctx.invite?.response ? 'Update your reply' : 'Reply to our invitation', '/rsvp', { variant: 'light' })}</div>` : ''}
     </div>
   </section>`;
 }
@@ -584,13 +606,10 @@ function closing(ctx) {
 
 export function homePage(ctx) {
   const c = ctx.content;
-  ctx.events = visibleEvents(c, ctx).filter(
-    (e) => e.access !== 'private' || ctx.preview || ctx.invite?.events.includes(e.id),
-  );
+  ctx.events = visibleEvents(c, ctx).filter((e) => e.access !== 'private' || ctx.preview || ctx.invite?.events.includes(e.id));
 
   const sections = {};
   ctx.has = {};
-  // Render dependent sections first so links between them only point at sections that exist.
   sections.gallery = gallery(ctx);
   ctx.has.gallery = Boolean(String(sections.gallery));
   sections.story = story(ctx);
@@ -600,20 +619,23 @@ export function homePage(ctx) {
   sections.guests = guests(ctx);
 
   const links = [
+    { href: '#invitation', label: 'Invitation' },
     ctx.has.story && { href: '#story', label: 'Our story' },
     { href: '#celebration', label: 'Celebration' },
     ctx.has.dress && { href: '#dress-code', label: 'Dress code' },
     ctx.has.gallery && { href: '#gallery', label: 'Gallery' },
-    String(sections.guests) && { href: '#guests', label: 'Guest information' },
+    String(sections.guests) && { href: '#guests', label: 'Guest info' },
   ].filter(Boolean);
 
   const names = `${c.couple.first} & ${c.couple.second}`;
   const when = ctx.clock.dateLong(c.date);
-  const title = `${names} · ${when}`;
+  const brand = c.codeName ? `${c.codeName} · ` : '';
+  const title = `${brand}${names} · ${when}`;
   const description = `${c.tagline} The wedding of ${names}, ${when}, ${c.place}.`;
   const og = ctx.invite
-    ? { title: `An invitation for ${ctx.invite.name}`, description: `The wedding of ${names}, ${when}. Open your invitation to reply.`, canonical: '/' }
-    : { title: `The wedding of ${names}`, description: `${when} · ${c.place}. ${c.tagline}` };
+    ? { title: `An invitation for ${ctx.invite.name}`, description: `${brand}The wedding of ${names}, ${when}. Open your invitation to reply.`, canonical: '/' }
+    : { title: `${brand}The wedding of ${names}`, description: `${when} · ${c.place}. ${c.tagline}` };
+  const replied = Boolean(ctx.invite?.response);
 
   return page(ctx, {
     title,
@@ -624,7 +646,11 @@ export function homePage(ctx) {
     body: html`${siteHeader(ctx, links)}
 <main id="main">
 ${hero(ctx)}
+${ticker(ctx)}
 ${invitation(ctx)}
+${ctx.rsvpOpen && ctx.phase === 'before'
+  ? ctaBand({ title: replied ? 'Need to change your reply?' : 'Kindly confirm your attendance', label: replied ? 'Update your reply' : 'RSVP now', href: '/rsvp' })
+  : ''}
 ${sections.story}
 ${celebration(ctx)}
 ${sections.dress}

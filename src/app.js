@@ -12,7 +12,7 @@ import { buildCalendar, calendarReady } from './ics.js';
 import { parseCsv, toCsv } from './csv.js';
 import { html } from './html.js';
 import { homePage } from './views/home.js';
-import { page, siteFooter, coupleMark } from './views/layout.js';
+import { page, siteHeader, siteFooter } from './views/layout.js';
 import { whatsappHref } from './views/parts.js';
 import * as rsvpViews from './views/rsvp.js';
 import * as adminViews from './views/admin.js';
@@ -87,14 +87,15 @@ export function createApp({ config, content, contentProblems = [], db }) {
       title: `${title} · ${c.couple.first} & ${c.couple.second}`,
       description: title,
       bodyClass: 'reply-page',
-      body: html`<header class="nav nav--solid"><div class="nav__inner"><a class="nav__mark" href="/">${coupleMark(c)}</a></div></header>
-        <main id="main" class="reply"><div class="reply__sheet">
+      scripts: ['/js/site.js'],
+      body: html`${siteHeader(ctx, [], { solid: true })}
+        <main id="main" class="reply reply--plain"><div class="container reply__wrap"><div class="reply__sheet">
           <p class="label">${status}</p>
           <h1 class="reply__title">${title}</h1>
           <p class="reply__lead">${body}</p>
           <div class="reply__actions"><a class="button button--ghost" href="/">Back to the invitation</a></div>
-        </div></main>
-        ${siteFooter(ctx, [], { tone: 'paper' })}`,
+        </div></div></main>
+        ${siteFooter(ctx)}`,
     });
   }
 

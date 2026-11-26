@@ -56,8 +56,10 @@ test('public pages', async (t) => {
   await t.test('the gallery offers photos and films that stream in byte ranges', async () => {
     const home = await c.get('/');
     assert.match(home.text, /property="og:image" content="http:\/\/wedding\.test\/images\/og\.jpg\?v=/);
-    assert.match(home.text, /<a class="gallery__open" href="\/videos\/proposal-film-1\.mp4"[^>]*data-video="\/videos\/proposal-film-1\.mp4"/);
-    assert.match(home.text, /Film · 0:10/);
+    assert.match(home.text, /<a class="gallery__open[^"]*" href="\/videos\/proposal-film-1\.mp4"[^>]*data-video="\/videos\/proposal-film-1\.mp4"/);
+    assert.match(home.text, /aria-label="Play film: Victor and Adaeze embracing as guests look on"/);
+    assert.match(home.text, /<\/svg> 0:10<\/span>/);
+    assert.match(home.text, /NEW WINE’26/);
     assert.match(home.text, /href="\/images\/proposal-03-810\.jpg"/);
 
     const full = await c.get('/videos/proposal-film-2.mp4');
@@ -104,7 +106,7 @@ test('a guest replies with their personal link', async (t) => {
   await t.test('the personal link greets the guest and reveals what they are invited to', async () => {
     const res = await guest.get(`/i/${inv.code}`);
     assert.equal(res.status, 200);
-    assert.match(res.text, /An invitation for <span>The Okafor Family<\/span>/);
+    assert.match(res.text, /An invitation for The Okafor Family/);
     assert.match(res.text, /property="og:title" content="An invitation for The Okafor Family"/);
     assert.match(res.text, /Test Reception/);
     assert.match(res.text, /Included in your invitation/);
@@ -133,7 +135,7 @@ test('a guest replies with their personal link', async (t) => {
     assert.match(thanks.text, /Thank you, Chidi\./);
     assert.match(thanks.text, /Attending · 2 guests/);
     const ics = await guest.get('/calendar.ics');
-    assert.match(ics.text, /SUMMARY:Victor & Adaeze: Church wedding/);
+    assert.match(ics.text, /SUMMARY:Victor & Adaeze: White wedding/);
     assert.doesNotMatch(ics.text, /Traditional/);
 
     await guest.post('/rsvp', reply({ attending: 'no' }));

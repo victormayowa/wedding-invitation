@@ -3,8 +3,8 @@ import { filled } from '../tbc.js';
 import { isTime } from '../format.js';
 import { displayCode } from '../db.js';
 import { calendarReady } from '../ics.js';
-import { page, siteFooter, coupleMark } from './layout.js';
-import { telHref, whatsappHref, plural } from './parts.js';
+import { page, siteHeader, siteFooter } from './layout.js';
+import { telHref, whatsappHref, plural, picture } from './parts.js';
 
 function shell(ctx, { title, body, scripts = [] }) {
   const c = ctx.content;
@@ -14,17 +14,26 @@ function shell(ctx, { title, body, scripts = [] }) {
     og: { title: `Kindly reply · ${c.couple.first} & ${c.couple.second}`, canonical: '/rsvp' },
     bodyClass: 'reply-page',
     scripts: ['/js/site.js', ...scripts],
-    body: html`<header class="nav nav--solid" data-nav>
-      <div class="nav__inner">
-        <a class="nav__mark" href="/">${coupleMark(c)}</a>
-        <div class="nav__end"><a class="nav__back" href="/">Back to the invitation</a></div>
-      </div>
-    </header>
+    body: html`${siteHeader(ctx, [], { solid: true })}
     <main id="main" class="reply">
-      <div class="reply__sheet">${body}</div>
+      ${pageHeader(ctx, 'RSVP')}
+      <div class="container reply__wrap"><div class="reply__sheet">${body}</div></div>
     </main>
-    ${siteFooter(ctx, [], { tone: 'paper' })}`,
+    ${siteFooter(ctx)}`,
   });
+}
+
+/** The photo band at the top of inner pages, as on the reference site. */
+export function pageHeader(ctx, title) {
+  const c = ctx.content;
+  const bg = [...(c.hero.slides || []), c.hero.image].find((n) => ctx.images.get(n));
+  return html`<div class="page-header">
+    ${bg ? html`<div class="page-header__bg">${picture(ctx, bg, { alt: '', sizes: '100vw', reveal: false, cls: 'media--cover' })}</div>` : ''}
+    <div class="container page-header__inner">
+      <p class="page-header__title" data-split>${title}</p>
+      <p class="page-header__crumbs"><a href="/">Home</a> <span aria-hidden="true">/</span> ${title}</p>
+    </div>
+  </div>`;
 }
 
 function deadlineLine(ctx, win) {
@@ -90,7 +99,7 @@ function eventWhen(ctx, e) {
 export function codePage(ctx, { code = '', error = '', win }) {
   return shell(ctx, {
     title: 'Kindly reply',
-    body: html`<p class="label">RSVP</p>
+    body: html`<p class="label">Your invitation</p>
       <h1 class="reply__title">Kindly reply</h1>
       <p class="reply__lead">Please enter the invitation code from the message we sent you.</p>
       ${deadlineLine(ctx, win)}

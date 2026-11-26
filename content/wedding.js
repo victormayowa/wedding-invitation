@@ -20,8 +20,25 @@
  */
 import { tbc } from '../src/tbc.js';
 
+/**
+ * The NEW WINE'26 colours. Wine, burgundy and green for the traditional engagement;
+ * white and grey for the white wedding; pink and purple. Adjust a hex value to
+ * match your fabrics exactly; the site's own palette is set in public/css/site.css.
+ */
+const COLOURS = {
+  wine: { name: 'Wine', hex: '#722F37' },
+  burgundy: { name: 'Burgundy', hex: '#800020' },
+  green: { name: 'Green', hex: '#1F5A3D' },
+  white: { name: 'White', hex: '#FFFFFF' },
+  grey: { name: 'Grey', hex: '#A7A6AB' },
+  pink: { name: 'Pink', hex: '#E8A0B4' },
+  purple: { name: 'Purple', hex: '#6B3E8E' },
+};
+
 export default {
   couple: { first: 'Victor', second: 'Adaeze' },
+  /** The wedding's code name, shown as the site's wordmark. */
+  codeName: 'NEW WINE’26',
 
   /** The wedding day, as YYYY-MM-DD. The countdown and the site's "after the wedding" state follow it. */
   date: '2026-11-28',
@@ -36,12 +53,16 @@ export default {
       'Together with our families, we joyfully invite you to celebrate the beginning of our forever.',
     /** Shown beneath the invitation, e.g. 'The family of Chief & Mrs …'. Remove a line you don't need. */
     families: [tbc('Adaeze’s family, e.g. “The family of Mr & Mrs …”'), tbc('Victor’s family')],
+    /** Photos beside the invitation: a tall one, then a small square one. */
+    images: ['proposal-03', 'proposal-02'],
   },
 
   hero: {
     /** Engagement or pre-wedding portrait, upright (4:5) works best. */
     image: 'proposal-04',
     alt: 'Victor and Adaeze smiling beneath a neon sign that reads “Will You Marry Me?”',
+    /** Further photos for the opening slideshow, after the main image. */
+    slides: ['proposal-05', 'proposal-01'],
     credit: null, // e.g. 'Photograph by …'
   },
 
@@ -116,7 +137,7 @@ export default {
   events: [
     {
       id: 'traditional',
-      name: 'Traditional wedding',
+      name: 'Traditional engagement',
       status: 'draft',
       access: 'open',
       date: tbc('Date, as YYYY-MM-DD'),
@@ -134,16 +155,13 @@ export default {
       dressCode: {
         title: tbc('Dress code, e.g. “Traditional attire”'),
         description: tbc('A line of guidance on what to wear'),
-        colours: [
-          { name: tbc('Colour name'), hex: tbc('Colour, e.g. #8E4B33') },
-          { name: tbc('Colour name'), hex: tbc('Colour') },
-        ],
+        colours: [COLOURS.wine, COLOURS.burgundy, COLOURS.green],
       },
       notes: tbc('Anything else guests should know (optional)'),
     },
     {
       id: 'church',
-      name: 'Church wedding',
+      name: 'White wedding',
       status: 'draft',
       access: 'open',
       date: '2026-11-28',
@@ -161,7 +179,7 @@ export default {
       dressCode: {
         title: tbc('Dress code'),
         description: tbc('What to wear'),
-        colours: [],
+        colours: [COLOURS.white, COLOURS.grey],
       },
       notes: tbc('e.g. Please arrive 30 minutes early'),
     },
@@ -213,11 +231,11 @@ export default {
 
   dressCode: {
     intro: tbc('A sentence on the spirit of what to wear'),
-    /** The wedding colours, shown as swatches. */
-    palette: [
-      { name: tbc('Colour name'), hex: tbc('Colour, e.g. #E9DCC6') },
-      { name: tbc('Colour name'), hex: tbc('Colour') },
-      { name: tbc('Colour name'), hex: tbc('Colour') },
+    /** Colour themes, shown as swatches. A theme without a title shows only its colours. */
+    themes: [
+      { title: 'Traditional engagement', colours: [COLOURS.wine, COLOURS.burgundy, COLOURS.green] },
+      { title: 'White wedding', colours: [COLOURS.white, COLOURS.grey] },
+      { title: tbc('Which celebration pink and purple are for'), colours: [COLOURS.pink, COLOURS.purple] },
     ],
     /** Any further notes: aso-ebi, what to avoid, guidance for the bridal party… */
     notes: [tbc('Aso-ebi or other attire notes (optional)')],

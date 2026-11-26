@@ -183,6 +183,6 @@ test('the shipped content is valid and its placeholders are listed', () => {
   assert.deepEqual(checkContent(content), []);
   const groups = contentChecklist(content);
   assert.ok(groups.length > 5);
-  assert.ok(groups.some((g) => g.label.startsWith('The celebration: Church wedding')));
+  assert.ok(groups.some((g) => g.label.startsWith('The celebration: White wedding')));
   assert.deepEqual(checkContent({ ...content, events: [{ id: 'Bad Id', name: 'x', status: 'live', access: 'open' }] }).length, 2);
 });

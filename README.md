@@ -1,8 +1,8 @@
-# The Wedding of Victor & Adaeze
+# NEW WINE'26: The Wedding of Victor & Adaeze
 
 A bespoke digital wedding invitation and guest portal for Saturday 28 November 2026, Ekiti State.
 
-![Design directions](design/directions.png)
+![NEW WINE'26](design/new-wine-26.jpg)
 
 It is a real working site, not a mock-up:
 
@@ -18,7 +18,7 @@ It is a real working site, not a mock-up:
   - export everything to CSV
 - **After the day** the site changes on its own: replies close, and the opening reads "Married on Saturday 28 November 2026".
 
-The design rationale (three directions explored, why "Harmattan" was chosen, and the self-review) is in [DESIGN.md](DESIGN.md).
+The design follows [revivalhubinternational.org](https://revivalhubinternational.org/): its font, its bold condensed headings and its kind of motion, in the NEW WINE'26 colours. Details are in [DESIGN.md](DESIGN.md).
 
 ## Run it on your computer
 

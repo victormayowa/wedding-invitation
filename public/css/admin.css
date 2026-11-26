@@ -11,8 +11,8 @@ body.admin {
   position: sticky;
   top: 0;
   z-index: 30;
-  background-color: rgba(243, 237, 227, 0.97);
-  box-shadow: 0 1px 0 var(--line);
+  background-color: var(--ink);
+  box-shadow: none;
 }
 .admin-bar__inner,
 .admin-main {
@@ -33,14 +33,16 @@ body.admin {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.25rem 0.875rem;
-  font: 400 1.125rem/1.2 var(--serif);
+  font: 800 1.25rem/1.2 var(--font);
+  text-transform: uppercase;
+  color: var(--white);
   text-decoration: none;
 }
 .admin-bar__sub {
   font: 500 0.6875rem/1 var(--sans);
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--ink-2);
+  color: var(--pink);
 }
 .admin-bar__nav {
   display: flex;
@@ -69,16 +71,16 @@ body.admin {
   letter-spacing: 0.13em;
   text-transform: uppercase;
   text-decoration: none;
-  color: var(--ink-2);
+  color: rgba(255, 255, 255, 0.75);
   cursor: pointer;
 }
 .admin-bar__nav a:hover,
 .admin-bar__out:hover,
 .admin-bar__nav [aria-current='page'] {
-  color: var(--ink);
+  color: var(--white);
 }
 .admin-bar__nav [aria-current='page'] {
-  box-shadow: inset 0 -1px 0 var(--ink);
+  box-shadow: inset 0 -2px 0 var(--pink);
 }
 
 .admin-main {
@@ -99,8 +101,9 @@ body.admin {
   color: inherit;
 }
 .admin-title {
-  font: 300 clamp(2.25rem, 5vw, 3.25rem) / 1.05 var(--serif);
-  letter-spacing: -0.02em;
+  font: 700 clamp(2rem, 4.4vw, 2.75rem) / 1.1 var(--font);
+  text-transform: uppercase;
+  color: var(--ink);
 }
 .admin-head__actions {
   display: flex;
@@ -115,7 +118,9 @@ body.admin {
 }
 .admin-subtitle {
   margin-bottom: 1rem;
-  font: 400 1.375rem/1.3 var(--serif);
+  font: 700 1.25rem/1.3 var(--font);
+  text-transform: uppercase;
+  color: var(--ink);
 }
 .admin-subtitle .muted {
   font: 400 0.875rem var(--sans);
@@ -190,7 +195,8 @@ body.admin {
   border-top: 1px solid var(--line);
 }
 .stat__value {
-  font: 300 clamp(2.5rem, 5vw, 3.5rem) / 1 var(--serif);
+  font: 700 clamp(2.5rem, 5vw, 3.5rem) / 1 var(--font);
+  color: var(--wine);
   font-variant-numeric: lining-nums tabular-nums;
   letter-spacing: -0.02em;
 }

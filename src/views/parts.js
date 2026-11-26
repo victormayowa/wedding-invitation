@@ -80,3 +80,35 @@ export const mapsEmbedSrc = (q) => `https://www.google.com/maps?q=${encodeURICom
 export const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 export const ROMAN = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x', 'xi', 'xii'];
+
+/* ---------- Icons: one line-drawn set, 24px grid, drawn in currentColor ---------- */
+
+const ICONS = {
+  arrow: '<path d="M7 17 17 7M8.5 7H17v8.5"/>',
+  calendar: '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  pin: '<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/>',
+  phone: '<path d="M5.2 4h3.3l1.6 4.2-2.1 1.4a11 11 0 0 0 6.4 6.4l1.4-2.1 4.2 1.6v3.3a1.6 1.6 0 0 1-1.7 1.6A16.4 16.4 0 0 1 3.6 5.7 1.6 1.6 0 0 1 5.2 4z"/>',
+  chat: '<path d="M4.5 19.5l1.3-3.7a8 8 0 1 1 2.9 2.8z"/><path d="M9 10.5h.01M12 10.5h.01M15 10.5h.01"/>',
+  rings: '<circle cx="9" cy="14" r="5.5"/><circle cx="15" cy="14" r="5.5"/><path d="M10.5 3.5h3L12 6z"/>',
+  dress: '<path d="M12 7.2a2 2 0 1 1 2-2"/><path d="M12 7.2v1.3l-8 6.4A1.6 1.6 0 0 0 5 17.8h14a1.6 1.6 0 0 0 1-2.9l-8-6.4"/>',
+  gift: '<rect x="4" y="9.5" width="16" height="10.5" rx="1.5"/><path d="M3 9.5h18M12 9.5V20M12 9.5S10.3 5 8 5.5s-.8 4 4 4c4.8 0 6.3-3.5 4-4S12 9.5 12 9.5"/>',
+  bed: '<path d="M3 18.5V6.5M3 13.5h18v5M21 18.5V15a3 3 0 0 0-3-3h-7v1.5"/><circle cx="7" cy="10.5" r="1.8"/>',
+  people: '<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="16.5" cy="9.5" r="2.5"/><path d="M15.2 14.3A4.6 4.6 0 0 1 20.5 19"/>',
+  mail: '<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="m4 7 8 6 8-6"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  heart: '<path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.3a4.3 4.3 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20z"/>',
+  play: '<path d="M8 5.5v13l10.5-6.5z"/>',
+};
+
+export const icon = (name, cls = '') =>
+  raw(`<svg class="icon ${cls}" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${ICONS[name] || ''}</svg>`);
+
+/** A pill button with the arrow disc, in the reference's style. */
+export function button(label, href, { variant = '', attrs = '' } = {}) {
+  return html`<a class="btn${variant ? ` btn--${variant}` : ''}" href="${href}"${attrs ? raw(` ${attrs}`) : ''}><span class="btn__label">${label}</span><span class="btn__disc" aria-hidden="true">${icon('arrow')}</span></a>`;
+}
+
+/** A hand-drawn arrow, as on the reference's call-to-action bands. */
+export const scribbleArrow = () =>
+  raw('<svg class="scribble" viewBox="0 0 120 44" width="120" height="44" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 30c16-12 30-15 40-8 9 6 5 15-3 12-9-4-3-19 18-21 15-1 30 7 49 18"/><path d="M98 21l10 10-14 2"/></svg>');
