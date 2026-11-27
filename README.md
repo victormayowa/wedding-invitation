@@ -96,14 +96,17 @@ Deployment runs from GitHub Actions ([`.github/workflows/deploy.yml`](.github/wo
 2. **A push to the default branch, or "Run workflow" on the Actions tab:**
    1. The workflow builds the Docker image and publishes it to GitHub Packages.
    2. It connects to your server over SSH, installing Docker there on the first run.
-   3. It starts the site behind Caddy, which gets the HTTPS certificate automatically.
+   3. It starts the site on `127.0.0.1:3100`, behind the server's own nginx, which handles HTTPS.
    4. It checks that the site answers, then writes the live link in the run summary.
 
 The guest list lives in **Postgres**. Either give the workflow your own database (`DATABASE_URL`), or leave it out and a Postgres container runs on the server, with its data kept in a Docker volume.
 
 ### One-time setup
 
-**1. The server.** Ports 80 and 443 must be open in its firewall or cloud security group, and nothing else may be using them.
+**1. The server.** Ports 80 and 443 must be open in its firewall or cloud security group.
+
+- **A server that already runs nginx for other sites** (as 169.58.141.167 does): the wedding site sits behind it and never touches ports 80/443. Install [`deploy/nginx.conf`](deploy/nginx.conf) once; the steps, including the certificate, are at the top of that file.
+- **A server with nothing on ports 80/443:** add a repository variable `PROXY` set to `caddy`, and a bundled Caddy answers on those ports and gets the certificate itself.
 
 **2. A deploy key.** On your own computer, create a key that only GitHub uses:
 
@@ -129,7 +132,7 @@ ssh-copy-id -i wedding-deploy.pub root@169.58.141.167
 | `DATABASE_SSL` | *optional:* `require`, or `no-verify` if your Postgres uses a self-signed certificate |
 Secrets must not contain single quotes. Until the three required ones exist, the deploy step is skipped with a warning, and the tests still run.
 
-The server address and domain are built into the workflow: the site deploys to `root@169.58.141.167` and is served at **https://victoradaezenewine.duckdns.org**. To change either, add a repository variable (Settings → Secrets and variables → Actions → Variables) named `SSH_HOST`, `SSH_USER`, `SSH_PORT` or `DOMAIN`.
+The server address and domain are built into the workflow: the site deploys to `root@169.58.141.167` and is served at **https://victoradaezenewine.duckdns.org**. To change either, add a repository variable (Settings → Secrets and variables → Actions → Variables) named `SSH_HOST`, `SSH_USER`, `SSH_PORT` or `DOMAIN`. `APP_PORT` (default `3100`) is the local port nginx forwards to.
 
 **4. Deploy.** Push to the default branch, or open **Actions → Test and deploy → Run workflow**. The site goes live at https://victoradaezenewine.duckdns.org, and the run summary shows the link.
 

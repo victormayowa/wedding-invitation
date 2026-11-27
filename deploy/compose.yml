@@ -1,9 +1,12 @@
 # The production stack. The GitHub workflow copies this file to /opt/wedding on
 # the server, writes /opt/wedding/.env next to it, and runs `docker compose up`.
 #
-#   app    the website (image built by the workflow and pushed to GitHub Packages)
+#   app    the website (image built by the workflow and pushed to GitHub Packages),
+#          reachable only from the server itself, on 127.0.0.1:APP_PORT
 #   db     Postgres, only when no external DATABASE_URL secret is given
-#   caddy  HTTPS: obtains and renews the certificate for DOMAIN automatically
+#   caddy  HTTPS for DOMAIN, only with PROXY=caddy (a server with nothing else on
+#          ports 80/443). With PROXY=nginx the server's own nginx forwards DOMAIN
+#          to the app instead: see deploy/nginx.conf.
 name: wedding
 
 services:
@@ -17,6 +20,8 @@ services:
       TRUST_PROXY: "1"
     expose:
       - "3000"
+    ports:
+      - "127.0.0.1:${APP_PORT:-3100}:3000"
 
   db:
     image: postgres:16-alpine
@@ -36,6 +41,7 @@ services:
 
   caddy:
     image: caddy:2-alpine
+    profiles: [caddy]
     restart: unless-stopped
     command: caddy reverse-proxy --from ${DOMAIN:?DOMAIN is not set} --to app:3000
     ports:

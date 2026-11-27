@@ -10,7 +10,10 @@
 #   DATABASE_SSL     'require', or 'no-verify' for a self-signed certificate
 #
 # Settings that are not secret have defaults below; override any of them with a
-# repository variable or secret of the same name: SSH_HOST, SSH_USER, SSH_PORT, DOMAIN.
+# repository variable or secret of the same name: SSH_HOST, SSH_USER, SSH_PORT, DOMAIN,
+# PROXY and APP_PORT. PROXY=nginx (the default) expects the server's own nginx to forward
+# DOMAIN to 127.0.0.1:APP_PORT (one-time setup: deploy/nginx.conf); PROXY=caddy runs a
+# bundled Caddy on ports 80/443 instead, for a server with nothing else on them.
 #
 # Until the three required secrets exist, the deploy job is skipped with a warning.
 name: Test and deploy
@@ -70,6 +73,8 @@ jobs:
       SSH_USER: ${{ secrets.SSH_USER || vars.SSH_USER || 'root' }}
       SSH_PORT: ${{ secrets.SSH_PORT || vars.SSH_PORT || '22' }}
       DOMAIN: ${{ secrets.DOMAIN || vars.DOMAIN || 'victoradaezenewine.duckdns.org' }}
+      PROXY: ${{ secrets.PROXY || vars.PROXY || 'nginx' }}
+      APP_PORT: ${{ secrets.APP_PORT || vars.APP_PORT || '3100' }}
     steps:
       - name: Check deployment settings
         id: check
@@ -162,6 +167,8 @@ jobs:
             echo "IMAGE='$IMAGE:$GITHUB_SHA'"
             echo "DOMAIN='$DOMAIN'"
             echo "PUBLIC_URL='https://$DOMAIN'"
+            echo "PROXY='$PROXY'"
+            echo "APP_PORT='$APP_PORT'"
             echo "ADMIN_PASSWORD='$ADMIN_PASSWORD'"
             echo "SESSION_SECRET='$SESSION_SECRET'"
             if [ -n "$DATABASE_URL" ]; then echo "DATABASE_URL='$DATABASE_URL'"; fi
@@ -192,5 +199,5 @@ jobs:
             fi
             sleep 5
           done
-          echo "::error::The site did not answer at $SITE_URL. Check that ports 80 and 443 are open on the server."
+          echo "::error::The site did not answer at $SITE_URL. Check that ports 80 and 443 are open, and with PROXY=nginx that deploy/nginx.conf is installed on the server."
           exit 1
