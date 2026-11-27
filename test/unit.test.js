@@ -145,7 +145,7 @@ test('replies close after the deadline and after the wedding', () => {
 test('the countdown runs to the first confirmed event on the day', () => {
   const c = testContent();
   assert.equal(countdownTarget(c, createClock(c)).toISOString(), '2026-11-28T09:00:00.000Z');
-  assert.equal(countdownTarget(content, createClock(content)).toISOString(), '2026-11-27T23:00:00.000Z');
+  assert.equal(countdownTarget(content, createClock(content)).toISOString(), '2026-11-28T10:00:00.000Z', 'the white wedding, 11 am in Abuja');
 });
 
 test('calendar files use UTC and fold long lines', () => {
@@ -182,7 +182,7 @@ test('phone numbers become WhatsApp-ready digits', () => {
 test('the shipped content is valid and its placeholders are listed', () => {
   assert.deepEqual(checkContent(content), []);
   const groups = contentChecklist(content);
-  assert.ok(groups.length > 5);
-  assert.ok(groups.some((g) => g.label.startsWith('The celebration: White wedding')));
+  assert.ok(groups.length >= 3, 'story, travel and questions are still to be written');
+  assert.ok(groups.some((g) => g.label.startsWith('The celebration: Thanksgiving service')));
   assert.deepEqual(checkContent({ ...content, events: [{ id: 'Bad Id', name: 'x', status: 'live', access: 'open' }] }).length, 2);
 });

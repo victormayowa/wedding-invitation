@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { startServer, client, ADMIN_PASSWORD } from './helpers.js';
+import { startServer, client, ADMIN_PASSWORD, testContent } from './helpers.js';
 import base from '../content/wedding.js';
 
 const reply = (o = {}) => ({ attending: 'yes', fullName: 'Chidi Okafor', phone: '0803 000 0000', guests: '2', events: 'church', ...o });
@@ -19,20 +19,51 @@ test('public pages', async (t) => {
     assert.doesNotMatch(res.text, /class="tbc"/);
     assert.doesNotMatch(res.text, /Thanksgiving service/, 'draft events stay hidden');
     assert.doesNotMatch(res.text, /Test Reception/, 'private events stay hidden');
-    assert.doesNotMatch(res.text, /0123456789/, 'gift details stay private');
+    assert.match(res.text, /0123456789/, 'gift details are public, as on the printed card');
     assert.match(res.headers.get('content-security-policy'), /default-src 'self'/);
     assert.equal(res.headers.get('x-frame-options'), 'DENY');
     assert.match(res.text, /name="robots" content="noindex/);
   });
 
-  await t.test('the untouched content shows only what is confirmed', async () => {
+  await t.test('the shipped content shows the invitation card details and nothing unconfirmed', async () => {
     const plain = await startServer({ content: base });
     const res = await plain.client().get('/');
+    const rsvp = await plain.client().get('/rsvp');
     await plain.close();
     assert.equal(res.status, 200);
-    assert.match(res.text, /Full details of the celebration will be shared here shortly/);
-    assert.doesNotMatch(res.text, /class="tbc"|Traditional wedding|plate/);
-    assert.doesNotMatch(res.text, /id="story"/);
+    assert.doesNotMatch(res.text, /class="tbc"|plate|Thanksgiving service|id="story"/);
+    for (const fact of ['Abuja, Nigeria', 'Engr. Dr. Chukwuma &amp; Dcns. Patience Katchy', 'Mr. Omotayo &amp; Mrs. Elizabeth Adeleye', 'Adaeze Ifeoma &amp; Victor Mayowa', 'Living Faith Church, Jahi', 'Admiralty Event Centre', '11 am prompt', 'The bride’s residence', '4102011901']) {
+      assert.ok(res.text.includes(fact), `shows ${fact}`);
+    }
+    // RSVP by phone: every reply button scrolls to the band with call and WhatsApp links.
+    assert.match(res.text, /id="rsvp"/);
+    assert.match(res.text, /href="tel:\+2347060452660"/);
+    assert.match(res.text, /href="https:\/\/wa\.me\/2347033750663\?text=Hello%20Chiaza/);
+    assert.doesNotMatch(res.text, /href="\/rsvp"/, 'no link leads to the code page');
+    assert.match(rsvp.text, /Kindly RSVP/);
+    assert.match(rsvp.text, /tel:\+2347060452660/);
+    assert.doesNotMatch(rsvp.text, /Invitation code/);
+    // Locations: the couple's own Google Maps links and an embedded map for each venue.
+    assert.match(res.text, /href="#locations"/);
+    assert.match(res.text, /href="https:\/\/maps\.app\.goo\.gl\/R5dxjq2atjnpQqps9"/);
+    assert.match(res.text, /href="https:\/\/maps\.app\.goo\.gl\/jghnDnHpbBmUw5Kc8"/);
+    assert.equal((res.text.match(/<iframe src="https:\/\/www\.google\.com\/maps\?q=/g) || []).length, 2);
+    // Gallery: one album at a time, no "All".
+    assert.doesNotMatch(res.text, /data-album="all"/);
+    assert.match(res.text, /aria-pressed="true" data-album="pre-wedding"/);
+    assert.match(res.text, /data-album="registry"/);
+    // The printed card is shown and can be saved.
+    assert.match(res.text, /invitation-iv-card-1334\.webp/);
+    assert.match(res.text, /download="NEW-WINE-26-invitation\.jpg"/);
+  });
+
+  await t.test('the online reply form with codes returns when byPhone is off', async () => {
+    const codes = await startServer({ content: testContent({ rsvp: { ...base.rsvp, byPhone: false, deadline: '2026-11-21' } }) });
+    const res = await codes.client().get('/rsvp');
+    const home = await codes.client().get('/');
+    await codes.close();
+    assert.match(res.text, /Invitation code/);
+    assert.match(home.text, /href="\/rsvp"/);
   });
 
   await t.test('preview mode marks placeholders', async () => {
@@ -152,7 +183,7 @@ test('a guest replies with their personal link', async (t) => {
     const forged = client(s.origin);
     forged.jar.set('va_invite', `${inv.code}.forged`);
     const res = await forged.get('/rsvp');
-    assert.match(res.text, /Invitation code/);
+    assert.match(res.text, /Kindly RSVP/, 'treated as a guest without an invitation');
   });
 
   await t.test('replies close after the deadline', async () => {

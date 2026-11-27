@@ -45,7 +45,7 @@ export function siteHeader(ctx, links = [], { solid = false } = {}) {
             </nav>`
           : ''}
         <div class="header__end">
-          ${ctx.rsvpOpen ? button(rsvpLabel, '/rsvp', { variant: 'sm' }) : ''}
+          ${ctx.rsvpOpen ? button(rsvpLabel, ctx.rsvpHref || '/rsvp', { variant: 'sm' }) : ''}
           ${links.length
             ? html`<a class="burger" href="#footer-nav" role="button" aria-expanded="false" aria-controls="menu" data-menu-toggle>
                 <span class="burger__line"></span><span class="burger__line"></span><span class="burger__line"></span>
@@ -58,7 +58,7 @@ export function siteHeader(ctx, links = [], { solid = false } = {}) {
         ? html`<nav class="mobile-menu" id="menu" aria-label="Menu" data-menu hidden>
             <ul class="container">
               ${links.map((l) => html`<li><a href="${l.href}" data-menu-link>${l.label}</a></li>`)}
-              ${ctx.rsvpOpen ? html`<li><a href="/rsvp" data-menu-link>${rsvpLabel}</a></li>` : ''}
+              ${ctx.rsvpOpen ? html`<li><a href="${ctx.rsvpHref || '/rsvp'}" data-menu-link>${rsvpLabel}</a></li>` : ''}
             </ul>
           </nav>`
         : ''}
@@ -94,7 +94,7 @@ export function siteFooter(ctx, links = []) {
             )}</ul>`
           : html`<p>Contact details will be shared here shortly.</p>`}
         ${filled(c.email) ? html`<p><span class="footer__icon">${icon('mail')}</span><a href="mailto:${c.email}">${c.email}</a></p>` : ''}
-        ${ctx.rsvpOpen ? button('Reply to our invitation', '/rsvp') : ''}
+        ${ctx.rsvpOpen ? button('Reply to our invitation', ctx.rsvpHref || '/rsvp') : ''}
       </div>
     </div>
     <div class="container footer__bottom">

@@ -21,19 +21,16 @@
 import { tbc } from '../src/tbc.js';
 
 /**
- * The NEW WINE'26 colours. Wine, burgundy and green for the traditional engagement;
- * white and grey for the white wedding; pink and purple. Adjust a hex value to
- * match your fabrics exactly; the site's own palette is set in public/css/site.css.
+ * The colours of the day, as printed on the invitation card (sampled from it).
+ * Adjust a hex value to match the fabrics exactly; the site's own palette is set
+ * in public/css/site.css.
  */
 const COLOURS = {
-  wine: { name: 'Wine', hex: '#722F37' },
-  burgundy: { name: 'Burgundy', hex: '#800020' },
-  green: { name: 'Green', hex: '#1F5A3D' },
-  white: { name: 'White', hex: '#FFFFFF' },
-  grey: { name: 'Grey', hex: '#A7A6AB' },
-  pink: { name: 'Pink', hex: '#E8A0B4' },
-  purple: { name: 'Purple', hex: '#6B3E8E' },
+  peach: { name: 'Peach', hex: '#F3AF92' },
+  wine: { name: 'Wine', hex: '#A70929' },
+  green: { name: 'Green', hex: '#728047' },
 };
+const COLOURS_OF_THE_DAY = [COLOURS.peach, COLOURS.wine, COLOURS.green];
 
 export default {
   couple: { first: 'Victor', second: 'Adaeze' },
@@ -44,16 +41,20 @@ export default {
   date: '2026-11-28',
   timezone: 'Africa/Lagos',
   utcOffset: '+01:00',
-  place: 'Ekiti State, Nigeria',
+  place: 'Abuja, Nigeria',
 
   tagline: 'Two hearts. One journey. A lifetime together.',
 
+  /** The invitation, worded as on the printed card. */
   invitation: {
-    statement:
-      'Together with our families, we joyfully invite you to celebrate the beginning of our forever.',
-    /** Shown beneath the invitation, e.g. 'The family of Chief & Mrs …'. Remove a line you don't need. */
-    families: [tbc('Adaeze’s family, e.g. “The family of Mr & Mrs …”'), tbc('Victor’s family')],
-    /** Photos beside the invitation: a tall one, then a small square one. */
+    families: ['Engr. Dr. Chukwuma & Dcns. Patience Katchy', 'Mr. Omotayo & Mrs. Elizabeth Adeleye'],
+    statement: 'cordially invite you to the wedding of their children',
+    names: 'Adaeze Ifeoma & Victor Mayowa',
+    /** The invitation card itself, shown whole beside the wording and offered as a download. */
+    card: 'invitation-iv-card',
+    cardAlt:
+      'The NEW WINE’26 invitation card: the wedding of Adaeze Ifeoma and Victor Mayowa, Thursday 26 and Saturday 28 November 2026',
+    /** Photos used when there is no card: a tall one, then a small square one. */
     images: ['pre-wedding-dsc-7005', 'pre-wedding-dsc-6935'],
   },
 
@@ -67,9 +68,20 @@ export default {
   },
 
   rsvp: {
-    /** Last day to reply, as YYYY-MM-DD. Replies close at the end of that day. */
-    deadline: tbc('Last day to reply, as YYYY-MM-DD'),
-    /** Shown on the RSVP page to guests who cannot find their code. */
+    /** Last day to reply, as YYYY-MM-DD. Replies close at the end of that day. None is set. */
+    deadline: null,
+    /**
+     * Guests reply by phone or WhatsApp to these people, as printed on the card; there are
+     * no invitation codes. Remove `byPhone` to use the online reply form with codes instead.
+     */
+    byPhone: true,
+    contacts: [
+      { name: 'Oluwaferanmi', phone: '0706 045 2660' },
+      { name: 'Chiaza', phone: '0703 375 0663' },
+    ],
+    /** Pre-filled WhatsApp message. {name} becomes the contact's name. */
+    whatsappMessage: 'Hello {name}, I’m replying to the invitation to the wedding of Adaeze & Victor (NEW WINE’26).',
+    /** Shown on the RSVP page to guests who cannot find their code (online form only). */
     help: 'If you can’t find your invitation code, or need to change the number of seats, please get in touch with us using the contacts below.',
   },
 
@@ -137,75 +149,70 @@ export default {
   events: [
     {
       id: 'traditional',
-      name: 'Traditional engagement',
-      status: 'draft',
+      name: 'Traditional wedding',
+      status: 'confirmed',
       access: 'open',
-      date: tbc('Date, as YYYY-MM-DD'),
-      start: tbc('Start time, e.g. 10:00'),
-      end: tbc('Finish time (optional)'),
+      date: '2026-11-26',
+      start: '14:00',
+      end: null,
       venue: {
-        name: tbc('Venue name'),
-        address: tbc('Full address'),
-        mapQuery: tbc('What to search on Google Maps: usually venue name and town'),
-        landmarks: tbc('Directions from a landmark guests will know'),
-        parking: tbc('Parking'),
-        transport: tbc('Transport arrangements, if any'),
-        image: tbc('Venue photo (optional)'),
+        name: 'The bride’s residence',
+        address: null,
+        mapQuery: null,
+        mapUrl: null,
+        landmarks: null,
+        parking: null,
+        transport: null,
+        image: null,
       },
-      dressCode: {
-        title: tbc('Dress code, e.g. “Traditional attire”'),
-        description: tbc('A line of guidance on what to wear'),
-        colours: [COLOURS.wine, COLOURS.burgundy, COLOURS.green],
-      },
-      notes: tbc('Anything else guests should know (optional)'),
+      dressCode: { title: null, description: null, colours: COLOURS_OF_THE_DAY },
+      notes: null,
     },
     {
       id: 'church',
       name: 'White wedding',
-      status: 'draft',
+      status: 'confirmed',
       access: 'open',
       date: '2026-11-28',
-      start: tbc('Start time, e.g. 10:00'),
-      end: tbc('Finish time (optional)'),
+      start: '11:00',
+      /** Shown after the start time. */
+      timeNote: 'prompt',
+      end: null,
       venue: {
-        name: tbc('Name of the church'),
-        address: tbc('Full address'),
-        mapQuery: tbc('What to search on Google Maps'),
-        landmarks: tbc('Directions from a landmark'),
-        parking: tbc('Parking'),
-        transport: tbc('Transport arrangements, if any'),
-        image: tbc('Church photo (optional)'),
+        name: 'Living Faith Church, Jahi',
+        address: 'Off Katampe Expressway, Jahi, Abuja',
+        /** What the embedded map shows (Google plus code and name). */
+        mapQuery: '4C4X+P25 Living Faith Church, Jahi, Abuja',
+        /** Where "Open in Google Maps" leads. */
+        mapUrl: 'https://maps.app.goo.gl/R5dxjq2atjnpQqps9',
+        landmarks: null,
+        parking: null,
+        transport: null,
+        image: null,
       },
-      dressCode: {
-        title: tbc('Dress code'),
-        description: tbc('What to wear'),
-        colours: [COLOURS.white, COLOURS.grey],
-      },
-      notes: tbc('e.g. Please arrive 30 minutes early'),
+      dressCode: { title: null, description: null, colours: COLOURS_OF_THE_DAY },
+      notes: null,
     },
     {
       id: 'reception',
-      name: 'Wedding reception',
-      status: 'draft',
+      name: 'Reception',
+      status: 'confirmed',
       access: 'open',
       date: '2026-11-28',
-      start: tbc('Start time'),
-      end: tbc('Finish time (optional)'),
+      start: '14:00',
+      end: null,
       venue: {
-        name: tbc('Reception hall'),
-        address: tbc('Full address'),
-        mapQuery: tbc('What to search on Google Maps'),
-        landmarks: tbc('Directions from a landmark'),
-        parking: tbc('Parking'),
-        transport: tbc('Transport between church and reception, if any'),
-        image: tbc('Venue photo (optional)'),
+        name: 'Admiralty Event Centre',
+        address: 'Command Guest House, off Murtala Mohammed Way, Asokoro, Abuja',
+        mapQuery: '3GM9+943 Admiralty Events Centre, Asokoro, Abuja',
+        mapUrl: 'https://maps.app.goo.gl/jghnDnHpbBmUw5Kc8',
+        landmarks: null,
+        parking: null,
+        transport: null,
+        image: null,
       },
-      dressCode: {
-        title: tbc('Dress code'),
-        description: tbc('What to wear'),
-        colours: [],
-      },
-      notes: tbc('Anything else guests should know (optional)'),
+      dressCode: { title: null, description: null, colours: COLOURS_OF_THE_DAY },
+      notes: null,
     },
     {
       id: 'thanksgiving',
@@ -230,15 +237,11 @@ export default {
   ],
 
   dressCode: {
-    intro: tbc('A sentence on the spirit of what to wear'),
+    intro: 'Please join us in the colours of the day.',
     /** Colour themes, shown as swatches. A theme without a title shows only its colours. */
-    themes: [
-      { title: 'Traditional engagement', colours: [COLOURS.wine, COLOURS.burgundy, COLOURS.green] },
-      { title: 'White wedding', colours: [COLOURS.white, COLOURS.grey] },
-      { title: tbc('Which celebration pink and purple are for'), colours: [COLOURS.pink, COLOURS.purple] },
-    ],
+    themes: [{ title: 'Colours of the day', colours: COLOURS_OF_THE_DAY }],
     /** Any further notes: aso-ebi, what to avoid, guidance for the bridal party… */
-    notes: [tbc('Aso-ebi or other attire notes (optional)')],
+    notes: [],
   },
 
   gallery: {
@@ -303,6 +306,27 @@ export default {
         id: 'registry',
         title: 'Registry',
         images: [
+          // The photographer's set first, then the phone photos and films from the same day.
+          { src: 'new-registry-dsc-5041', alt: 'Victor and Adaeze exchanging rings' },
+          { src: 'new-registry-dsc-5046', alt: 'Victor and Adaeze smiling at each other during the ring exchange' },
+          { src: 'new-registry-dsc-5049', alt: 'Victor and Adaeze signing the marriage register' },
+          { src: 'new-registry-dsc-5051', alt: 'Signing the marriage register together' },
+          { src: 'new-registry-dsc-5055', alt: 'Victor and Adaeze at the registry table' },
+          { src: 'new-registry-dsc-5057', alt: 'Signing the register with witnesses' },
+          { src: 'new-registry-dsc-5058', alt: 'Victor and Adaeze seated at the registry, smiling' },
+          { src: 'new-registry-dsc-5060', alt: 'Victor and Adaeze sharing a smile at the registry table' },
+          { src: 'new-registry-dsc-5061', alt: 'Victor and Adaeze embracing after the vows' },
+          { src: 'new-registry-dsc-5062', alt: 'Victor and Adaeze sharing a kiss' },
+          { src: 'new-registry-dsc-5066', alt: 'Receiving the marriage certificate' },
+          { src: 'new-registry-dsc-5069', alt: 'The certificate presentation with family' },
+          { src: 'new-registry-dsc-5072', alt: 'Victor and Adaeze at the Federal Marriage Registry sign' },
+          { src: 'new-registry-dsc-5077', alt: 'Victor and Adaeze laughing together at the registry' },
+          { src: 'new-registry-dsc-5078', alt: 'Victor and Adaeze with family at the registry' },
+          { src: 'new-registry-dsc-5083', alt: 'Victor and Adaeze with family and friends outside the registry' },
+          { src: 'new-registry-dsc-5086', alt: 'Adaeze holding the marriage certificate' },
+          { src: 'new-registry-dsc-5092', alt: 'Adaeze waving, bouquet in hand' },
+          { src: 'new-registry-dsc-5098', alt: 'Victor and Adaeze with friends at the registry' },
+          { src: 'new-registry-dsc-5099', alt: 'Victor with the marriage certificate' },
           { src: 'registry-2026-11-24-17-01-18-1', alt: 'Victor and Adaeze outside, she holding her bouquet' },
           { src: 'registry-2026-11-25-02-49-55-1', alt: 'Victor and Adaeze at the Federal Marriage Registry' },
           { src: 'registry-2026-11-25-02-49-55', alt: 'Victor signing the marriage register' },
@@ -323,7 +347,7 @@ export default {
   },
 
   travel: {
-    intro: tbc('A line for guests travelling from outside Ekiti State'),
+    intro: tbc('A line for guests travelling to Abuja'),
     hotels: [
       {
         name: tbc('Hotel name'),
@@ -368,24 +392,24 @@ export default {
    * whatsapp: true adds a WhatsApp link for the same number.
    */
   contacts: [
-    { name: tbc('Coordinator’s name'), role: 'Wedding coordinator', phone: tbc('Phone'), whatsapp: true },
-    { name: tbc('Name'), role: 'For Adaeze’s family and guests', phone: tbc('Phone'), whatsapp: true },
-    { name: tbc('Name'), role: 'For Victor’s family and guests', phone: tbc('Phone'), whatsapp: true },
+    { name: 'Oluwaferanmi', role: 'RSVP', phone: '0706 045 2660', whatsapp: true },
+    { name: 'Chiaza', role: 'RSVP', phone: '0703 375 0663', whatsapp: true },
   ],
-  email: tbc('An email address for enquiries (optional)'),
+  email: null,
 
   gifts: {
     enabled: true,
     message: 'Your presence on our day is the greatest gift of all.',
     /**
-     * Gift details are shown only to guests who have opened their personal
-     * invitation link or entered their code, never to the public.
+     * public: true shows the gift details to everyone, as the printed card does.
+     * Without it they appear only to guests who opened a personal invitation link.
      */
-    detailsIntro: 'For those who have kindly asked, here is how to send a gift.',
+    public: true,
+    detailsIntro: 'For those who wish to bless us, we prefer gifts in monetary value.',
     details: [
       {
         label: 'Bank transfer',
-        lines: [tbc('Account name'), tbc('Bank'), tbc('Account number')],
+        lines: ['Adaeze Katchy', 'Ecobank', '4102011901'],
       },
     ],
     registry: { label: 'Gift registry', url: null },

@@ -4,6 +4,8 @@ import { isIsoDate, isTime } from '../format.js';
 import { visibleEvents, countdownTarget } from '../rsvp.js';
 import { calendarReady } from '../ics.js';
 import { page, siteHeader, siteFooter, coupleMark } from './layout.js';
+
+const rsvpHref = (ctx) => ctx.rsvpHref || '/rsvp';
 import {
   t,
   shows,
@@ -18,6 +20,8 @@ import {
   icon,
   button,
   scribbleArrow,
+  directionsHref,
+  rsvpPeople,
   ROMAN,
 } from './parts.js';
 
@@ -80,7 +84,7 @@ function hero(ctx) {
 
   let actions = '';
   if (ctx.phase === 'before') {
-    actions = html`${ctx.rsvpOpen ? button(reply, '/rsvp') : ''}${button('The celebration', '#celebration', { variant: 'light' })}`;
+    actions = html`${ctx.rsvpOpen ? button(reply, rsvpHref(ctx)) : ''}${button('The celebration', '#celebration', { variant: 'light' })}`;
   } else if (ctx.phase === 'today') {
     actions = button('Today’s celebration', '#celebration');
   } else if (ctx.has.gallery) {
@@ -164,35 +168,69 @@ function ticker(ctx) {
 
 function invitation(ctx) {
   const c = ctx.content;
-  const families = (c.invitation.families || []).filter((f) => shows(f, ctx));
-  const imgs = (c.invitation.images || []).filter((n) => ctx.images.get(n) || (ctx.preview && (isTbc(n) || filled(n))));
+  const inv = c.invitation;
+  const families = (inv.families || []).filter((f) => shows(f, ctx));
+  const card = inv.card ? ctx.images.get(inv.card) : null;
+  const imgs = card ? [] : (inv.images || []).filter((n) => ctx.images.get(n) || (ctx.preview && (isTbc(n) || filled(n))));
   const [day, month] = ctx.clock.dayMonth(c.date).split(' ');
+  const glance = ctx.events.filter((e) => isIsoDate(e.date));
+
+  let visual = '';
+  if (card) {
+    const full = `/images/${card.name}-${card.widths[card.widths.length - 1]}.webp`;
+    const save = `/images/${card.name}-${card.jpg[card.jpg.length - 1]}.jpg`;
+    visual = html`<figure class="iv-card" data-fade>
+      <a class="iv-card__frame image-anime" href="${full}" target="_blank" rel="noopener" aria-label="Open the invitation card full size">
+        ${picture(ctx, inv.card, { alt: inv.cardAlt || 'The invitation card', sizes: '(min-width: 992px) 30vw, 86vw', reveal: false })}
+      </a>
+      <figcaption class="iv-card__actions">
+        <a class="text-link" href="${save}" download="NEW-WINE-26-invitation.jpg">${icon('download')} Save the invitation card</a>
+      </figcaption>
+    </figure>`;
+  } else if (imgs.length) {
+    visual = html`<div class="about__images">
+      <figure class="about__img about__img--main image-anime" data-curtain>${picture(ctx, imgs[0], { alt: c.hero.alt, ratio: '4 / 5', sizes: '(min-width: 992px) 34vw, 90vw', reveal: false })}</figure>
+      ${imgs[1] ? html`<figure class="about__img about__img--small image-anime" data-curtain>${picture(ctx, imgs[1], { alt: '', ratio: '1 / 1', sizes: '(min-width: 992px) 18vw, 45vw', reveal: false })}</figure>` : ''}
+      <p class="about__badge" data-fade style="--d:.5s"><strong>${day}</strong><span>${month} ${c.date.slice(0, 4)}</span></p>
+    </div>`;
+  }
+
   return html`<section class="section about" id="invitation" aria-labelledby="invite-title">
-    <div class="container about__grid${imgs.length ? '' : ' about__grid--text'}">
-      ${imgs.length
-        ? html`<div class="about__images">
-            <figure class="about__img about__img--main image-anime" data-curtain>${picture(ctx, imgs[0], { alt: c.hero.alt, ratio: '4 / 5', sizes: '(min-width: 992px) 34vw, 90vw', reveal: false })}</figure>
-            ${imgs[1] ? html`<figure class="about__img about__img--small image-anime" data-curtain>${picture(ctx, imgs[1], { alt: '', ratio: '1 / 1', sizes: '(min-width: 992px) 18vw, 45vw', reveal: false })}</figure>` : ''}
-            <p class="about__badge" data-fade style="--d:.5s"><strong>${day}</strong><span>${month} ${c.date.slice(0, 4)}</span></p>
-          </div>`
-        : ''}
+    <div class="container about__grid${visual ? (card ? ' about__grid--card' : '') : ' about__grid--text'}">
+      ${visual}
       <div class="about__text">
         ${sectionTitle({ label: ctx.invite ? html`An invitation for ${ctx.invite.name}` : 'Our invitation', lead: 'You are', accent: 'invited', id: 'invite-title' })}
-        <p class="about__statement" data-fade>${c.invitation.statement}</p>
         ${families.length
-          ? html`<ul class="about__list">
+          ? html`<p class="about__lead" data-fade>The families of</p>
+            <ul class="about__list">
               ${families.map((f, i) => html`<li data-fade style="--d:${0.25 * (i + 1)}s"><span class="icon-box">${icon('heart')}</span><span>${t(f, ctx)}</span></li>`)}
             </ul>`
           : ''}
-        ${ctx.rsvpOpen && ctx.phase === 'before'
-          ? html`<div class="about__actions" data-fade style="--d:.5s">${button(ctx.invite?.response ? 'Update your reply' : 'Reply to our invitation', '/rsvp')}</div>`
+        ${filled(inv.statement) ? html`<p class="about__statement" data-fade>${inv.statement}</p>` : ''}
+        ${filled(inv.names) ? html`<p class="about__names" data-fade>${inv.names}</p>` : ''}
+        ${glance.length
+          ? html`<ul class="glance" data-fade>
+              ${glance.map(
+                (e) => html`<li class="glance__item">
+                  <span class="glance__name">${e.name}</span>
+                  <span class="glance__when">${ctx.clock.dateMedium(e.date)}${isTime(e.start) ? ` · ${timeRange(ctx, e)}` : ''}</span>
+                  ${filled(e.venue?.name) ? html`<span class="glance__where">${e.venue.name}</span>` : ''}
+                </li>`,
+              )}
+            </ul>`
+          : ''}
+        ${ctx.rsvpOpen && ctx.phase !== 'after'
+          ? html`<div class="about__actions" data-fade style="--d:.5s">
+              ${button(ctx.invite?.response ? 'Update your reply' : 'Reply to our invitation', rsvpHref(ctx))}
+              ${ctx.has.locations ? html`<a class="text-link" href="#locations">${icon('pin')} Locations &amp; maps</a>` : ''}
+            </div>`
           : ''}
       </div>
     </div>
   </section>`;
 }
 
-/* ---------------------------------------------------------------- CTA band */
+/* ---------------------------------------------------------------- RSVP band */
 
 function ctaBand({ title, label, href }) {
   return html`<section class="cta-band" aria-label="${title}">
@@ -202,6 +240,26 @@ function ctaBand({ title, label, href }) {
         ${scribbleArrow()}
         ${button(label, href, { variant: 'light' })}
       </div>
+    </div>
+  </section>`;
+}
+
+/** Guests reply by phone: the RSVP contacts in the wine band, with call and WhatsApp buttons. */
+function rsvpBand(ctx) {
+  const c = ctx.content;
+  const people = rsvpPeople(ctx, { cls: 'rsvp-people--band' });
+  if (!c.rsvp?.byPhone || !String(people)) {
+    const replied = Boolean(ctx.invite?.response);
+    return ctaBand({ title: replied ? 'Need to change your reply?' : 'Kindly confirm your attendance', label: replied ? 'Update your reply' : 'RSVP now', href: '/rsvp' });
+  }
+  return html`<section class="cta-band rsvp-band" id="rsvp" aria-labelledby="rsvp-title">
+    <div class="container rsvp-band__inner">
+      <div class="rsvp-band__intro">
+        <h2 class="cta-band__title" id="rsvp-title" data-split>Kindly RSVP</h2>
+        <p class="rsvp-band__text" data-fade>Call or send a WhatsApp message to confirm your attendance.</p>
+        ${scribbleArrow()}
+      </div>
+      <div data-fade style="--d:.25s">${people}</div>
     </div>
   </section>`;
 }
@@ -242,7 +300,8 @@ function story(ctx) {
 
 function timeRange(ctx, e) {
   if (!isTime(e.start)) return '';
-  return isTime(e.end) && e.end > e.start ? `${ctx.clock.time(e.start)} – ${ctx.clock.time(e.end)}` : ctx.clock.time(e.start);
+  const time = isTime(e.end) && e.end > e.start ? `${ctx.clock.time(e.start)} – ${ctx.clock.time(e.end)}` : ctx.clock.time(e.start);
+  return filled(e.timeNote) ? `${time} ${e.timeNote}` : time;
 }
 
 function accessNote(ctx, e) {
@@ -292,20 +351,10 @@ function eventCard(ctx, e, i) {
         : ''}
     </ul>
     <div class="event-card__actions">
-      ${query ? button('Directions', mapsDirectionsHref(query), { variant: 'sm', attrs: 'target="_blank" rel="noopener"' }) : ''}
+      ${query ? button('Directions', directionsHref(v, query), { variant: 'sm', attrs: 'target="_blank" rel="noopener"' }) : ''}
       ${calendarReady(e) ? html`<a class="text-link" href="/calendar/${e.id}.ics">${icon('calendar')} Add to calendar</a>` : ''}
     </div>
-    ${query || extras.length
-      ? html`<details class="event-card__more" data-event-more>
-          <summary>Venue, map &amp; arrival <span class="plus" aria-hidden="true">${icon('plus')}</span></summary>
-          ${query
-            ? html`<div class="event-card__map" data-map="${mapsEmbedSrc(query)}" data-map-title="Map of ${filled(v.name) ? v.name : e.name}">
-                <a class="event-card__map-fallback" href="${mapsDirectionsHref(query)}" rel="noopener" target="_blank">Open the map in Google Maps</a>
-              </div>`
-            : ''}
-          ${extras.length ? html`<dl class="event-card__notes">${extras.map(([label, val]) => html`<div><dt>${label}</dt><dd>${paras(val, ctx)}</dd></div>`)}</dl>` : ''}
-        </details>`
-      : ''}
+    ${extras.length ? html`<dl class="event-card__notes">${extras.map(([label, val]) => html`<div><dt>${label}</dt><dd>${paras(val, ctx)}</dd></div>`)}</dl>` : ''}
   </article>`;
 }
 
@@ -323,6 +372,42 @@ function celebration(ctx) {
         </p>
       </div>
       ${events.length ? html`<div class="event-grid">${events.map((e, i) => eventCard(ctx, e, i))}</div>` : ''}
+    </div>
+  </section>`;
+}
+
+/* ---------------------------------------------------------------- Locations */
+
+function locations(ctx) {
+  const places = ctx.events.filter((e) => filled(e.venue?.mapQuery) || filled(e.venue?.mapUrl));
+  if (!places.length) return '';
+  return html`<section class="section locations" id="locations" aria-labelledby="locations-title">
+    <div class="container">
+      <div class="section-row section-row--center">
+        ${sectionTitle({ label: 'Getting there', lead: 'Our', accent: 'locations', id: 'locations-title', center: true })}
+        <p class="section-intro section-intro--center" data-fade>Open a map in Google Maps for directions to each venue.</p>
+      </div>
+      <div class="location-grid">
+        ${places.map((e, i) => {
+          const v = e.venue;
+          const query = filled(v.mapQuery) ? v.mapQuery : [v.name, v.address].filter(filled).join(', ');
+          const time = timeRange(ctx, e);
+          return html`<article class="location" data-fade style="--d:${(i % 2) * 0.25}s">
+            <div class="location__map">
+              <iframe src="${mapsEmbedSrc(query)}" title="Map of ${v.name}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+            </div>
+            <div class="location__body">
+              <p class="tag tag--accent">${e.name}</p>
+              <h3 class="location__name">${v.name}</h3>
+              <ul class="location__facts">
+                ${filled(v.address) ? html`<li>${icon('pin')}<span>${v.address}</span></li>` : ''}
+                ${isIsoDate(e.date) ? html`<li>${icon('clock')}<span>${ctx.clock.dateMedium(e.date)}${time ? ` · ${time}` : ''}</span></li>` : ''}
+              </ul>
+              ${button('Open in Google Maps', directionsHref(v, query), { attrs: 'target="_blank" rel="noopener"' })}
+            </div>
+          </article>`;
+        })}
+      </div>
     </div>
   </section>`;
 }
@@ -422,8 +507,7 @@ function gallery(ctx) {
       ${head(
         albums.length > 1
           ? html`<div class="gallery__filters" role="group" aria-label="Albums" data-gallery-filters>
-              <button type="button" aria-pressed="true" data-album="all">All</button>
-              ${albums.map((a) => html`<button type="button" aria-pressed="false" data-album="${a.id}">${a.title}</button>`)}
+              ${albums.map((a, i) => html`<button type="button" aria-pressed="${i === 0 ? 'true' : 'false'}" data-album="${a.id}">${a.title} <span class="gallery__count">${a.images.length}</span></button>`)}
             </div>`
           : '',
       )}
@@ -561,7 +645,7 @@ function guests(ctx) {
 function gifts(ctx) {
   const g = ctx.content.gifts;
   if (!g?.enabled) return '';
-  const canSee = Boolean(ctx.invite) || ctx.preview;
+  const canSee = Boolean(g.public) || Boolean(ctx.invite) || ctx.preview;
   const details = (g.details || []).filter((d) => (d.lines || []).some((l) => shows(l, ctx)));
   const hasRealDetails = (g.details || []).some((d) => (d.lines || []).some(filled)) || filled(g.registry?.url);
   const registry = filled(g.registry?.url) ? g.registry : null;
@@ -606,7 +690,7 @@ function closing(ctx) {
       <p class="eyebrow eyebrow--light" data-fade>${icon('rings')}<span>${c.codeName || 'With love'}</span></p>
       <p class="closing__message" data-split>${message}</p>
       <p class="closing__signoff" data-fade style="--d:.25s"><span>${c.closing.signoff}</span> <strong>${coupleMark(c)}</strong></p>
-      ${ctx.rsvpOpen && ctx.phase === 'before' ? html`<div data-fade style="--d:.5s">${button(ctx.invite?.response ? 'Update your reply' : 'Reply to our invitation', '/rsvp', { variant: 'light' })}</div>` : ''}
+      ${ctx.rsvpOpen && ctx.phase === 'before' ? html`<div data-fade style="--d:.5s">${button(ctx.invite?.response ? 'Update your reply' : 'Reply to our invitation', rsvpHref(ctx), { variant: 'light' })}</div>` : ''}
     </div>
   </section>`;
 }
@@ -617,8 +701,13 @@ export function homePage(ctx) {
   const c = ctx.content;
   ctx.events = visibleEvents(c, ctx).filter((e) => e.access !== 'private' || ctx.preview || ctx.invite?.events.includes(e.id));
 
+  // Guests reply by phone: every "Reply" button scrolls to the RSVP band on this page.
+  ctx.rsvpHref = c.rsvp?.byPhone && !ctx.invite ? '#rsvp' : '/rsvp';
+
   const sections = {};
   ctx.has = {};
+  sections.locations = locations(ctx);
+  ctx.has.locations = Boolean(String(sections.locations));
   sections.gallery = gallery(ctx);
   ctx.has.gallery = Boolean(String(sections.gallery));
   sections.story = story(ctx);
@@ -631,6 +720,7 @@ export function homePage(ctx) {
     { href: '#invitation', label: 'Invitation' },
     ctx.has.story && { href: '#story', label: 'Our story' },
     { href: '#celebration', label: 'Celebration' },
+    ctx.has.locations && { href: '#locations', label: 'Locations' },
     ctx.has.dress && { href: '#dress-code', label: 'Dress code' },
     ctx.has.gallery && { href: '#gallery', label: 'Gallery' },
     String(sections.guests) && { href: '#guests', label: 'Guest info' },
@@ -644,7 +734,6 @@ export function homePage(ctx) {
   const og = ctx.invite
     ? { title: `An invitation for ${ctx.invite.name}`, description: `${brand}The wedding of ${names}, ${when}. Open your invitation to reply.`, canonical: '/' }
     : { title: `${brand}The wedding of ${names}`, description: `${when} · ${c.place}. ${c.tagline}` };
-  const replied = Boolean(ctx.invite?.response);
 
   return page(ctx, {
     title,
@@ -657,17 +746,16 @@ export function homePage(ctx) {
 ${hero(ctx)}
 ${ticker(ctx)}
 ${invitation(ctx)}
-${ctx.rsvpOpen && ctx.phase === 'before'
-  ? ctaBand({ title: replied ? 'Need to change your reply?' : 'Kindly confirm your attendance', label: replied ? 'Update your reply' : 'RSVP now', href: '/rsvp' })
-  : ''}
+${ctx.rsvpOpen && ctx.phase !== 'after' ? rsvpBand(ctx) : ''}
 ${sections.story}
 ${celebration(ctx)}
+${sections.locations}
 ${sections.dress}
 ${sections.gallery}
 ${sections.guests}
 ${gifts(ctx)}
 ${closing(ctx)}
 </main>
-${siteFooter(ctx, [...links, ...(ctx.rsvpOpen ? [{ href: '/rsvp', label: 'RSVP' }] : [])])}`,
+${siteFooter(ctx, [...links, ...(ctx.rsvpOpen ? [{ href: rsvpHref(ctx), label: 'RSVP' }] : [])])}`,
   });
 }

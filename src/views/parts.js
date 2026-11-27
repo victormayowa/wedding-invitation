@@ -99,6 +99,7 @@ const ICONS = {
   plus: '<path d="M12 5v14M5 12h14"/>',
   heart: '<path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.3a4.3 4.3 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20z"/>',
   play: '<path d="M8 5.5v13l10.5-6.5z"/>',
+  download: '<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14"/>',
 };
 
 export const icon = (name, cls = '') =>
@@ -112,3 +113,29 @@ export function button(label, href, { variant = '', attrs = '' } = {}) {
 /** A hand-drawn arrow, as on the reference's call-to-action bands. */
 export const scribbleArrow = () =>
   raw('<svg class="scribble" viewBox="0 0 120 44" width="120" height="44" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 30c16-12 30-15 40-8 9 6 5 15-3 12-9-4-3-19 18-21 15-1 30 7 49 18"/><path d="M98 21l10 10-14 2"/></svg>');
+
+/** Where "Directions" leads: the venue's own Google Maps link when given, otherwise a search. */
+export const directionsHref = (venue, query) => (filled(venue?.mapUrl) ? venue.mapUrl : mapsDirectionsHref(query));
+
+/**
+ * The people guests RSVP to, with a call button and a WhatsApp button that opens a
+ * pre-written message. Used on the home page and the RSVP page.
+ */
+export function rsvpPeople(ctx, { cls = '' } = {}) {
+  const r = ctx.content.rsvp || {};
+  const people = (r.contacts || []).filter((p) => filled(p.phone));
+  if (!people.length) return '';
+  const message = (p) => String(r.whatsappMessage || '').replaceAll('{name}', p.name || '');
+  return html`<ul class="rsvp-people ${cls}">
+    ${people.map(
+      (p) => html`<li class="rsvp-person">
+        <span class="rsvp-person__name">${p.name}</span>
+        <a class="rsvp-person__phone" href="${telHref(p.phone)}">${p.phone}</a>
+        <span class="rsvp-person__actions">
+          <a class="pill" href="${telHref(p.phone)}">${icon('phone')}<span>Call</span></a>
+          <a class="pill pill--wa" href="${whatsappHref(p.phone, message(p))}" target="_blank" rel="noopener">${icon('chat')}<span>WhatsApp</span></a>
+        </span>
+      </li>`,
+    )}
+  </ul>`;
+}

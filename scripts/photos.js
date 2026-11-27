@@ -69,6 +69,7 @@ try {
 function photoName(rel) {
   return rel
     .slice(0, rel.length - path.extname(rel).length)
+    .replace(/\.(jpe?g|png|webp|heic)$/i, '') // "DSC_5041.JPG.jpeg": a doubled extension from messaging apps
     .split(path.sep)
     .join('/')
     .toLowerCase()
@@ -111,6 +112,7 @@ async function photoRefs() {
   const refs = [
     c.hero?.image,
     ...(c.hero?.slides || []),
+    c.invitation?.card,
     ...(c.invitation?.images || []),
     c.closing?.image,
     ...(c.story?.chapters || []).map((ch) => ch.image),

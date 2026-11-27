@@ -366,16 +366,21 @@
   if (gallery) {
     const items = [...gallery.querySelectorAll('.gallery__item')];
     const filters = doc.querySelector('[data-gallery-filters]');
+    /* One album at a time: the tabs switch between them, starting with the first. */
+    const showAlbum = (album) => {
+      filters?.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.album === album)));
+      items.forEach((li) => {
+        li.hidden = li.dataset.album !== album;
+      });
+    };
     filters?.addEventListener('click', (e) => {
       const button = e.target.closest('button[data-album]');
       if (!button) return;
-      const album = button.dataset.album;
-      filters.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b === button)));
-      items.forEach((li) => {
-        li.hidden = album !== 'all' && li.dataset.album !== album;
-      });
+      showAlbum(button.dataset.album);
       layout();
     });
+    const first = filters?.querySelector('button[aria-pressed="true"]') || filters?.querySelector('button[data-album]');
+    if (first) showAlbum(first.dataset.album);
 
     /* Balanced rows: each photo keeps its proportions; every row spans the full width. */
     function layout() {

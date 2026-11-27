@@ -169,10 +169,10 @@ def enlarge(rgb, model, blend):
 
 # ---------------------------------------------------------------- main
 
-def enhance_image(src, model, blend, max_side):
+def enhance_image(src, model, blend, max_side, tone=True):
     im = ImageOps.exif_transpose(Image.open(src)).convert('RGB')
     rgb = np.asarray(im)
-    rgb, notes = repair_tone(rgb)
+    rgb, notes = repair_tone(rgb) if tone else (rgb, [])
     if max(rgb.shape[:2]) * 2 <= max_side:
         rgb, how = enlarge(rgb, model, blend)
         notes.append(how)
@@ -201,6 +201,7 @@ def main():
     p.add_argument('--denoise', type=float, default=0.5, help='0 keeps grain, 1 removes most noise (default 0.5)')
     p.add_argument('--blend', type=float, default=0.25, help='share of plain enlargement mixed back in (default 0.25)')
     p.add_argument('--max-side', type=int, default=2600, help='only enlarge photos whose long side doubled stays within this')
+    p.add_argument('--keep-tone', action='store_true', help='enlarge only: leave colours as they are (designed cards, graphics)')
     p.add_argument('--trim', type=float, help='videos: start the clip this many seconds in')
     p.add_argument('--ffmpeg', default=shutil.which('ffmpeg') or 'ffmpeg')
     args = p.parse_args()
@@ -216,7 +217,7 @@ def main():
                 continue
             dest, notes = trim_video(f, args.trim, args.ffmpeg)
         else:
-            dest, notes = enhance_image(f, model, args.blend, args.max_side)
+            dest, notes = enhance_image(f, model, args.blend, args.max_side, tone=not args.keep_tone)
         print(f'  {os.path.relpath(dest, ROOT)}  ({", ".join(notes) or "unchanged"})')
 
 

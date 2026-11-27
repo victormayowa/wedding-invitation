@@ -28,6 +28,8 @@ Photos sent over WhatsApp are small and often hazy. `scripts/enhance.py` repairs
 
 It writes to `photos/enhanced/` and never touches your originals. The next step uses an enhanced copy automatically when one exists. Setup and usage are at the top of the script. It needs Python with Pillow, NumPy and OpenCV.
 
+For a designed graphic such as the invitation card, add `--keep-tone` so its colours stay exactly as designed.
+
 Professional photos need nothing here. They are far larger than any screen and are reduced in the next step.
 
 ## 3. Prepare

@@ -4,7 +4,7 @@ import { isTime } from '../format.js';
 import { displayCode } from '../db.js';
 import { calendarReady } from '../ics.js';
 import { page, siteHeader, siteFooter } from './layout.js';
-import { telHref, whatsappHref, plural, picture } from './parts.js';
+import { telHref, whatsappHref, plural, picture, rsvpPeople } from './parts.js';
 
 function shell(ctx, { title, body, scripts = [] }) {
   const c = ctx.content;
@@ -95,6 +95,19 @@ function eventWhen(ctx, e) {
 }
 
 /* ---------------------------------------------------------------- Pages */
+
+/** Guests reply by phone or WhatsApp to the people printed on the invitation card. */
+export function phonePage(ctx, { notice = '' } = {}) {
+  return shell(ctx, {
+    title: 'Kindly RSVP',
+    body: html`<p class="label">Your invitation</p>
+      <h1 class="reply__title">Kindly RSVP</h1>
+      ${notice ? html`<p class="reply__notice">${notice}</p>` : ''}
+      <p class="reply__lead">Please confirm your attendance by calling or sending a WhatsApp message to:</p>
+      ${rsvpPeople(ctx, { cls: 'rsvp-people--sheet' })}
+      <div class="reply__actions"><a class="button button--ghost" href="/">Back to the invitation</a></div>`,
+  });
+}
 
 export function codePage(ctx, { code = '', error = '', win }) {
   return shell(ctx, {

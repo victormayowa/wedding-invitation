@@ -7,6 +7,8 @@ A bespoke digital wedding invitation and guest portal for Saturday 28 November 2
 It is a real working site, not a mock-up:
 
 - **The invitation:** names, portrait, a live countdown, your story, every part of the celebration with maps and directions, the dress code and colours, a gallery with a lightbox, travel and accommodation, questions, contacts, gifts and a closing message.
+- **RSVP by phone, as on the printed card:** every "Reply" button leads to the RSVP contacts, with a Call button and a WhatsApp button that opens a ready-written message. Set the people in `rsvp.contacts` in `content/wedding.js`. Setting `rsvp.byPhone` to `false` switches to the online reply form below.
+- **Locations:** a map and an "Open in Google Maps" button for each venue, using the links in each event's `venue.mapUrl`.
 - **Personal invitation links** such as `/i/K7QM-3XP9` greet each guest by name, show the events they are invited to and pre-fill their reply. Guests can also type their code at `/rsvp`.
 - **RSVP:** accept or decline, the number of guests (never more than the seats you allocated), which celebrations they will attend, contact details, dietary and accessibility needs, and a note to you. Guests can change their reply until your deadline. They see a confirmation and can add the events to their calendar.
 - **An admin area at `/admin`:**

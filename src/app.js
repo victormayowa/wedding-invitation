@@ -106,6 +106,9 @@ export function createApp({ config, content, contentProblems = [], db }) {
   router.get('/i/:code', async (ctx, { code }) => {
     const invite = await db.findByCode(code);
     if (!invite) {
+      if (content.rsvp?.byPhone) {
+        return sendHtml(ctx.req, ctx.res, 404, rsvpViews.phonePage(ctx, { notice: 'We couldn’t find an invitation for that link, but you can still reply below.' }));
+      }
       return sendHtml(ctx.req, ctx.res, 404, rsvpViews.codePage(ctx, {
         code: displayCode(normaliseCode(code)),
         error: 'We couldn’t find an invitation for that link. Please check the code below, or enter it again.',
@@ -134,6 +137,7 @@ export function createApp({ config, content, contentProblems = [], db }) {
     const { req, res } = ctx;
     if (!ctx.rsvpOpen) return sendHtml(req, res, 200, rsvpViews.closedPage(ctx, { invitation: ctx.invite, win: ctx.window }));
     if (!ctx.invite) {
+      if (content.rsvp?.byPhone) return sendHtml(req, res, 200, rsvpViews.phonePage(ctx));
       const code = line(ctx.url.searchParams.get('code'), 20);
       return sendHtml(req, res, 200, rsvpViews.codePage(ctx, { code, win: ctx.window }));
     }
