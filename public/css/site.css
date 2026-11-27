@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEW WINE'26 — the wedding of Victor & Adaeze
+   NEW WINE'26 — the wedding of Adaeze & Victor
    Design language after revivalhubinternational.org: Fira Sans Condensed,
    bold uppercase headings with a wine accent, pill buttons with an arrow disc,
    photographic hero slider, scrolling ticker, character-by-character headings,
@@ -855,3 +855,45 @@ legend.field__label { margin-bottom: 12px; }
   .location { border-radius: 24px; }
 }
 .section-title + .about__lead { margin-top: 26px; }
+
+/* ---------- Love notes: the couple's own words ---------- */
+
+.section--lilac { background: var(--lilac); }
+.notes__list { display: grid; gap: 40px; }
+.note__kicker { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 14px; color: var(--wine); font: 600 15px/1.3 var(--font); letter-spacing: 0.06em; text-transform: uppercase; }
+.note__kicker .icon { width: 18px; height: 18px; }
+.note__kicker--light { color: var(--pink); }
+
+.letter { display: grid; gap: 40px; padding: 30px; border-radius: 30px; background: var(--white); }
+.letter__img { align-self: start; overflow: hidden; border-radius: 180px 30px 30px 30px; }
+.letter__body { max-width: 680px; }
+.letter__title { margin-bottom: 26px; color: var(--ink); font: 700 clamp(28px, 3.4vw, 40px)/1.15 var(--font); text-transform: uppercase; }
+.letter__text p { color: var(--text); font-size: 18px; line-height: 1.75; }
+.letter__text p + p { margin-top: 1.1em; }
+.letter__text p:first-child { color: var(--ink); font-size: 20px; }
+.letter__finale { margin-top: 36px; padding-top: 30px; border-top: 2px solid var(--pink); color: var(--wine); font: 800 clamp(36px, 5.4vw, 64px)/1.05 var(--font); text-transform: uppercase; }
+
+.note-card { display: grid; gap: 30px 60px; padding: clamp(30px, 5vw, 60px); border-radius: 30px; background: var(--wine); color: rgba(255, 255, 255, 0.86); }
+.note-card__word { color: var(--pink); font: 800 clamp(52px, 8.4vw, 112px)/0.95 var(--font); text-transform: uppercase; overflow-wrap: anywhere; }
+.note-card__title { margin-top: 18px; color: var(--white); font: 600 clamp(20px, 2.2vw, 24px)/1.3 var(--font); }
+.note-card__text p { font-size: 19px; line-height: 1.7; }
+.note-card__text p + p { margin-top: 1em; }
+
+@media (min-width: 992px) {
+  .letter { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 70px; padding: 40px; }
+  .letter__img { position: sticky; top: 120px; }
+  .note-card { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; }
+}
+
+@media (max-width: 599px) {
+  .letter { padding: 20px 20px 30px; border-radius: 24px; }
+  .letter__img { border-radius: 110px 24px 24px 24px; }
+  .letter__text p { font-size: 17px; }
+  .letter__text p:first-child { font-size: 18px; }
+  .note-card { border-radius: 24px; }
+}
+
+@media print {
+  .letter__img { position: static; }
+  .note-card { background: none; color: var(--ink); }
+}

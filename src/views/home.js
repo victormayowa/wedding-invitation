@@ -296,6 +296,48 @@ function story(ctx) {
   </section>`;
 }
 
+/* ---------------------------------------------------------------- Love notes */
+
+/** A note with a photo: the photo stays beside the text as it scrolls. */
+function letter(ctx, n, id) {
+  return html`<article class="letter" aria-labelledby="${id}">
+    <figure class="letter__img image-anime" data-curtain>${picture(ctx, n.image, { alt: n.alt || '', ratio: '3 / 4', sizes: '(min-width: 992px) 34vw, 90vw', reveal: false })}</figure>
+    <div class="letter__body">
+      ${filled(n.kicker) ? html`<p class="note__kicker" data-fade>${icon('heart')}<span>${n.kicker}</span></p>` : ''}
+      <h3 class="letter__title" id="${id}" data-fade>${n.title}</h3>
+      <div class="letter__text" data-fade style="--d:.15s">${paras(n.body, ctx)}</div>
+      ${filled(n.finale) ? html`<p class="letter__finale" data-split>${n.finale}</p>` : ''}
+    </div>
+  </article>`;
+}
+
+/** A note without a photo, set as a card with its word large. */
+function noteCard(ctx, n, id) {
+  return html`<article class="note-card" aria-labelledby="${id}">
+    <div class="note-card__head">
+      ${filled(n.kicker) ? html`<p class="note__kicker note__kicker--light" data-fade>${icon('heart')}<span>${n.kicker}</span></p>` : ''}
+      ${filled(n.word) ? html`<p class="note-card__word" aria-hidden="true" data-split>${n.word}</p>` : ''}
+      <h3 class="note-card__title" id="${id}" data-fade>${n.title}</h3>
+    </div>
+    <div class="note-card__text" data-fade style="--d:.2s">${paras(n.body, ctx)}</div>
+  </article>`;
+}
+
+function loveNotes(ctx) {
+  const notes = (ctx.content.notes || []).filter((n) => shows(n.body, ctx));
+  if (!notes.length) return '';
+  return html`<section class="section section--lilac notes" id="love-notes" aria-labelledby="notes-title">
+    <div class="container">
+      <div class="section-row">
+        ${sectionTitle({ label: 'Love notes', lead: 'In our', accent: 'own words', id: 'notes-title' })}
+      </div>
+      <div class="notes__list">
+        ${notes.map((n, i) => (shows(n.image, ctx) && ctx.images.get(n.image) ? letter(ctx, n, `note-${i + 1}`) : noteCard(ctx, n, `note-${i + 1}`)))}
+      </div>
+    </div>
+  </section>`;
+}
+
 /* ---------------------------------------------------------------- Celebration */
 
 function timeRange(ctx, e) {
@@ -712,6 +754,8 @@ export function homePage(ctx) {
   ctx.has.gallery = Boolean(String(sections.gallery));
   sections.story = story(ctx);
   ctx.has.story = Boolean(String(sections.story));
+  sections.notes = loveNotes(ctx);
+  ctx.has.notes = Boolean(String(sections.notes));
   sections.dress = dressCode(ctx);
   ctx.has.dress = Boolean(String(sections.dress));
   sections.guests = guests(ctx);
@@ -719,6 +763,7 @@ export function homePage(ctx) {
   const links = [
     { href: '#invitation', label: 'Invitation' },
     ctx.has.story && { href: '#story', label: 'Our story' },
+    ctx.has.notes && { href: '#love-notes', label: 'Love notes' },
     { href: '#celebration', label: 'Celebration' },
     ctx.has.locations && { href: '#locations', label: 'Locations' },
     ctx.has.dress && { href: '#dress-code', label: 'Dress code' },
@@ -748,6 +793,7 @@ ${ticker(ctx)}
 ${invitation(ctx)}
 ${ctx.rsvpOpen && ctx.phase !== 'after' ? rsvpBand(ctx) : ''}
 ${sections.story}
+${sections.notes}
 ${celebration(ctx)}
 ${sections.locations}
 ${sections.dress}

@@ -473,8 +473,9 @@ export function createApp({ config, content, contentProblems = [], db }) {
   function sideFrom(value) {
     const v = line(value, 20).toLowerCase();
     if (!v) return '';
-    if (['first', 'groom', content.couple.first.toLowerCase()].includes(v)) return 'first';
-    if (['second', 'bride', content.couple.second.toLowerCase()].includes(v)) return 'second';
+    // couple.first is the bride (see content/wedding.js), named first as on the card.
+    if (['first', 'bride', content.couple.first.toLowerCase()].includes(v)) return 'first';
+    if (['second', 'groom', content.couple.second.toLowerCase()].includes(v)) return 'second';
     if (['both', 'shared', 'mutual'].includes(v)) return 'both';
     return null;
   }

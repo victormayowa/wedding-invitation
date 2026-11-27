@@ -2,7 +2,7 @@
   "name": "victor-and-adaeze",
   "version": "1.0.0",
   "private": true,
-  "description": "The wedding of Victor & Adaeze: digital invitation, RSVP and guest management.",
+  "description": "The wedding of Adaeze & Victor: digital invitation, RSVP and guest management.",
   "type": "module",
   "engines": {
     "node": ">=22.13"

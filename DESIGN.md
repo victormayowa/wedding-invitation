@@ -1,6 +1,6 @@
 # Design: NEW WINE'26
 
-The wedding of Victor & Adaeze, Saturday 28 November 2026, Ekiti State.
+The wedding of Adaeze & Victor, Saturday 28 November 2026, Abuja.
 
 ![NEW WINE'26](design/new-wine-26.jpg)
 

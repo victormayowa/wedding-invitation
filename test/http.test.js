@@ -55,6 +55,17 @@ test('public pages', async (t) => {
     // The printed card is shown and can be saved.
     assert.match(res.text, /invitation-iv-card-1334\.webp/);
     assert.match(res.text, /download="NEW-WINE-26-invitation\.jpg"/);
+    // The bride is named first everywhere, as on the card.
+    assert.match(res.text, /<title>NEW WINE’26 · Adaeze &amp; Victor ·/);
+    assert.match(res.text, /Adaeze <span class="amp">&amp;<\/span> Victor/);
+    assert.doesNotMatch(res.text, /Victor (&amp;|and) Adaeze/);
+    // Love notes: the groom's proposal and the bride's note, with their own menu link.
+    assert.match(res.text, /href="#love-notes">Love notes</);
+    assert.match(res.text, /id="love-notes"/);
+    assert.match(res.text, /As I kneel here before you today/);
+    assert.match(res.text, /class="letter__finale" data-split>Will you marry me\?</);
+    assert.match(res.text, /The reason behind why “Achalugo” is on my fan/);
+    assert.ok(res.text.includes('copying from my baby😂'), 'emoji survive');
   });
 
   await t.test('the online reply form with codes returns when byPhone is off', async () => {
@@ -88,13 +99,13 @@ test('public pages', async (t) => {
     const home = await c.get('/');
     assert.match(home.text, /property="og:image" content="http:\/\/wedding\.test\/images\/og\.jpg\?v=/);
     assert.match(home.text, /<a class="gallery__open[^"]*" href="\/videos\/proposal-film-1\.mp4"[^>]*data-video="\/videos\/proposal-film-1\.mp4"/);
-    assert.match(home.text, /aria-label="Play film: Victor and Adaeze embracing as guests look on"/);
+    assert.match(home.text, /aria-label="Play film: Adaeze and Victor embracing as guests look on"/);
     assert.match(home.text, /<\/svg> 0:10<\/span>/);
     assert.match(home.text, /NEW WINE’26/);
     assert.match(home.text, /href="\/images\/proposal-03-810\.webp"/, 'gallery links open the largest WebP');
     assert.match(home.text, /pre-wedding-dsc-6740-2400\.webp 2400w/, 'professional photos offer a 2400 px WebP');
     assert.doesNotMatch(home.text, /-2400\.jpg/, 'JPEG fallbacks stop at 1600 px');
-    assert.match(home.text, /aria-label="Play film: Victor and Adaeze arriving at the registry with family"/);
+    assert.match(home.text, /aria-label="Play film: Adaeze and Victor arriving at the registry with family"/);
 
     const full = await c.get('/videos/proposal-film-2.mp4');
     assert.equal(full.status, 200);
@@ -169,7 +180,7 @@ test('a guest replies with their personal link', async (t) => {
     assert.match(thanks.text, /Thank you, Chidi\./);
     assert.match(thanks.text, /Attending · 2 guests/);
     const ics = await guest.get('/calendar.ics');
-    assert.match(ics.text, /SUMMARY:Victor & Adaeze: White wedding/);
+    assert.match(ics.text, /SUMMARY:Adaeze & Victor: White wedding/);
     assert.doesNotMatch(ics.text, /Traditional/);
 
     await guest.post('/rsvp', reply({ attending: 'no' }));
@@ -258,7 +269,8 @@ test('the admin area', async (t) => {
     assert.equal(list.length, 3);
     const ada = list.find((i) => i.name === 'Ada');
     assert.deepEqual(ada.events, ['church', 'reception']);
-    assert.equal(list.find((i) => i.name === 'Okafor, Chidi').side, 'first');
+    assert.equal(list.find((i) => i.name === 'Okafor, Chidi').side, 'second', 'groom is the second side');
+    assert.equal(ada.side, 'first', 'the bride is named first');
   });
 
   await t.test('publishes updates guests can see', async () => {
