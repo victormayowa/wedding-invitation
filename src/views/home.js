@@ -166,37 +166,53 @@ function ticker(ctx) {
 
 /* ---------------------------------------------------------------- Invitation */
 
+/** A photo's description, from wherever the gallery lists it. */
+function altFor(c, src) {
+  for (const a of c.gallery?.albums || []) for (const im of a.images) if (im.src === src && im.alt) return im.alt;
+  return '';
+}
+
 function invitation(ctx) {
   const c = ctx.content;
   const inv = c.invitation;
   const families = (inv.families || []).filter((f) => shows(f, ctx));
   const card = inv.card ? ctx.images.get(inv.card) : null;
-  const imgs = card ? [] : (inv.images || []).filter((n) => ctx.images.get(n) || (ctx.preview && (isTbc(n) || filled(n))));
+  const imgs = (inv.images || []).filter((n) => ctx.images.get(n) || (ctx.preview && (isTbc(n) || filled(n))));
   const [day, month] = ctx.clock.dayMonth(c.date).split(' ');
   const glance = ctx.events.filter((e) => isIsoDate(e.date));
+  const cardFull = card && `/images/${card.name}-${card.widths[card.widths.length - 1]}.webp`;
+  const cardSave = card && `/images/${card.name}-${card.jpg[card.jpg.length - 1]}.jpg`;
 
   let visual = '';
-  if (card) {
-    const full = `/images/${card.name}-${card.widths[card.widths.length - 1]}.webp`;
-    const save = `/images/${card.name}-${card.jpg[card.jpg.length - 1]}.jpg`;
-    visual = html`<figure class="iv-card" data-fade>
-      <a class="iv-card__frame image-anime" href="${full}" target="_blank" rel="noopener" aria-label="Open the invitation card full size">
-        ${picture(ctx, inv.card, { alt: inv.cardAlt || 'The invitation card', sizes: '(min-width: 992px) 30vw, 86vw', reveal: false })}
-      </a>
-      <figcaption class="iv-card__actions">
-        <a class="text-link" href="${save}" download="NEW-WINE-26-invitation.jpg">${icon('download')} Save the invitation card</a>
-      </figcaption>
-    </figure>`;
-  } else if (imgs.length) {
+  if (imgs.length) {
+    // The portrait, the ring in one corner, the printed card in the other and the date badge.
     visual = html`<div class="about__images">
-      <figure class="about__img about__img--main image-anime" data-curtain>${picture(ctx, imgs[0], { alt: c.hero.alt, ratio: '4 / 5', sizes: '(min-width: 992px) 34vw, 90vw', reveal: false })}</figure>
-      ${imgs[1] ? html`<figure class="about__img about__img--small image-anime" data-curtain>${picture(ctx, imgs[1], { alt: '', ratio: '1 / 1', sizes: '(min-width: 992px) 18vw, 45vw', reveal: false })}</figure>` : ''}
+      <figure class="about__img about__img--main image-anime" data-curtain>${picture(ctx, imgs[0], { alt: altFor(c, imgs[0]), ratio: '4 / 5', sizes: '(min-width: 992px) 34vw, 90vw', reveal: false })}</figure>
+      ${imgs[1] ? html`<figure class="about__img about__img--small image-anime" data-curtain>${picture(ctx, imgs[1], { alt: altFor(c, imgs[1]), ratio: '1 / 1', sizes: '(min-width: 992px) 18vw, 45vw', reveal: false })}</figure>` : ''}
+      ${card
+        ? html`<a class="about__card" href="${cardFull}" target="_blank" rel="noopener" aria-label="Open the invitation card full size" data-fade style="--d:.35s">
+            ${picture(ctx, inv.card, { alt: '', sizes: '(min-width: 992px) 15vw, 36vw', reveal: false })}
+            <span class="about__card-open" aria-hidden="true">${icon('arrow')}</span>
+          </a>`
+        : ''}
       <p class="about__badge" data-fade style="--d:.5s"><strong>${day}</strong><span>${month} ${c.date.slice(0, 4)}</span></p>
     </div>`;
+  } else if (card) {
+    visual = html`<figure class="iv-card" data-fade>
+      <a class="iv-card__frame image-anime" href="${cardFull}" target="_blank" rel="noopener" aria-label="Open the invitation card full size">
+        ${picture(ctx, inv.card, { alt: inv.cardAlt || 'The invitation card', sizes: '(min-width: 992px) 30vw, 86vw', reveal: false })}
+      </a>
+    </figure>`;
   }
 
+  const actions = [
+    ctx.rsvpOpen && ctx.phase !== 'after' && button(ctx.invite?.response ? 'Update your reply' : 'Reply to our invitation', rsvpHref(ctx)),
+    ctx.has.locations && html`<a class="text-link" href="#locations">${icon('pin')} Locations &amp; maps</a>`,
+    card && html`<a class="text-link" href="${cardSave}" download="NEW-WINE-26-invitation.jpg">${icon('download')} Save the invitation card</a>`,
+  ].filter(Boolean);
+
   return html`<section class="section about" id="invitation" aria-labelledby="invite-title">
-    <div class="container about__grid${visual ? (card ? ' about__grid--card' : '') : ' about__grid--text'}">
+    <div class="container about__grid${visual ? (imgs.length ? '' : ' about__grid--card') : ' about__grid--text'}">
       ${visual}
       <div class="about__text">
         ${sectionTitle({ label: ctx.invite ? html`An invitation for ${ctx.invite.name}` : 'Our invitation', lead: 'You are', accent: 'invited', id: 'invite-title' })}
@@ -219,12 +235,7 @@ function invitation(ctx) {
               )}
             </ul>`
           : ''}
-        ${ctx.rsvpOpen && ctx.phase !== 'after'
-          ? html`<div class="about__actions" data-fade style="--d:.5s">
-              ${button(ctx.invite?.response ? 'Update your reply' : 'Reply to our invitation', rsvpHref(ctx))}
-              ${ctx.has.locations ? html`<a class="text-link" href="#locations">${icon('pin')} Locations &amp; maps</a>` : ''}
-            </div>`
-          : ''}
+        ${actions.length ? html`<div class="about__actions" data-fade style="--d:.5s">${actions}</div>` : ''}
       </div>
     </div>
   </section>`;
@@ -506,6 +517,15 @@ function gallery(ctx) {
   const albums = c.gallery.albums
     .map((a) => ({ ...a, images: a.images.filter((im) => ctx.images.get(im.src)) }))
     .filter((a) => a.images.length);
+
+  // Films: one more tab gathering every film, those listed for it first, then each album's in order.
+  if (c.gallery.films) {
+    const seen = new Set();
+    const films = [...(c.gallery.films.images || []), ...albums.flatMap((a) => a.images)].filter(
+      (im) => ctx.images.get(im.src)?.video && !seen.has(im.src) && seen.add(im.src),
+    );
+    if (films.length) albums.push({ id: 'films', title: c.gallery.films.title || 'Films', images: films });
+  }
 
   const head = (filters = '') => html`<div class="section-row gallery__head">
     ${sectionTitle({ label: 'Gallery', lead: 'Moments', accent: 'together', id: 'gallery-title' })}

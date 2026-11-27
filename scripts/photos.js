@@ -117,9 +117,17 @@ async function photoRefs() {
     c.closing?.image,
     ...(c.story?.chapters || []).map((ch) => ch.image),
     ...(c.events || []).map((e) => e.venue?.image),
+    ...(c.notes || []).map((n) => n.image),
     ...(c.gallery?.albums || []).flatMap((a) => (a.images || []).map((im) => im.src)),
+    ...(c.gallery?.films?.images || []).map((im) => im.src),
   ];
-  return { refs: new Set(refs.filter((r) => typeof r === 'string' && r)), hero: typeof c.hero?.image === 'string' ? c.hero.image : null };
+  // A film's cover frame: `poster: seconds` on its gallery entry, otherwise 40% of the way in.
+  const posters = new Map(
+    [...(c.gallery?.albums || []).flatMap((a) => a.images || []), ...(c.gallery?.films?.images || [])]
+      .filter((im) => typeof im.src === 'string' && Number.isFinite(im.poster))
+      .map((im) => [im.src, im.poster]),
+  );
+  return { refs: new Set(refs.filter((r) => typeof r === 'string' && r)), hero: typeof c.hero?.image === 'string' ? c.hero.image : null, posters };
 }
 
 /* ---------- Photos ---------- */
@@ -190,7 +198,7 @@ function ffmpeg(args) {
   if (r.status !== 0) throw new Error(r.stderr.trim() || 'ffmpeg failed');
 }
 
-async function prepareVideo(file, name) {
+async function prepareVideo(file, name, at = null) {
   const info = probe(file);
   const out = path.join(VIDEO_OUT, `${name}.mp4`);
   // Phone and WhatsApp videos are usually H.264 + AAC already: keep them untouched, only make them stream-ready.
@@ -206,10 +214,11 @@ async function prepareVideo(file, name) {
     out,
   ]);
   const poster = path.join(os.tmpdir(), `poster-${process.pid}-${name}.jpg`);
-  ffmpeg(['-ss', (info.duration * 0.4).toFixed(2), '-i', file, '-frames:v', '1', '-q:v', '2', poster]);
+  const when = at !== null && at < info.duration ? at : info.duration * 0.4;
+  ffmpeg(['-ss', when.toFixed(2), '-i', file, '-frames:v', '1', '-q:v', '2', poster]);
   try {
     const entry = await prepareImage(poster, name);
-    return { ...entry, video: { src: `/videos/${name}.mp4`, duration: Math.round(info.duration) } };
+    return { ...entry, video: { src: `/videos/${name}.mp4`, duration: Math.round(info.duration), ...(at !== null ? { poster: at } : {}) } };
   } finally {
     fs.rmSync(poster, { force: true });
   }
@@ -243,7 +252,7 @@ async function main() {
     previous = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
   } catch {}
 
-  const { refs, hero } = await photoRefs();
+  const { refs, hero, posters } = await photoRefs();
   const sources = new Map();
   for (const s of discover()) {
     if (!s.name) continue;
@@ -273,12 +282,14 @@ async function main() {
     }
     const old = previous[s.name];
     const mtime = Math.round(fs.statSync(s.file).mtimeMs);
-    const fresh = old && old.source === s.rel && old.mtime === mtime && Boolean(old.enhanced) === s.enhanced && outputsExist(s.name, old);
+    const posterAt = s.isVideo ? (posters.get(s.name) ?? null) : null;
+    const fresh =
+      old && old.source === s.rel && old.mtime === mtime && Boolean(old.enhanced) === s.enhanced && (old.video?.poster ?? null) === posterAt && outputsExist(s.name, old);
     if (fresh) continue;
     process.stdout.write(`  photos/${s.rel}${s.enhanced ? ' (enhanced)' : ''} → ${s.name} `);
     if (s.isVideo) fs.mkdirSync(VIDEO_OUT, { recursive: true });
     if (old) removeOutputs(s.name, old);
-    const entry = s.isVideo ? await prepareVideo(s.file, s.name) : await prepareImage(s.file, s.name);
+    const entry = s.isVideo ? await prepareVideo(s.file, s.name, posterAt) : await prepareImage(s.file, s.name);
     manifest[s.name] = { ...entry, source: s.rel, ...(s.enhanced ? { enhanced: true } : {}), mtime };
     prepared++;
     console.log(`(${entry.w}×${entry.h}${entry.video ? `, film ${entry.video.duration}s` : ''})`);

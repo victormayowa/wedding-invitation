@@ -24,7 +24,8 @@ Photos sent over WhatsApp are small and often hazy. `scripts/enhance.py` repairs
 
 - it restores contrast and colour, but only as much as each photo needs
 - it enlarges 2× with light denoising and gentle sharpening
-- it can trim a video so it starts at the right moment
+- it can trim a video so it starts at the right moment (`--trim 20`)
+- it can polish a video (`--polish`): light denoising and sharpening, re-encoded at a sensible size, since phone clips are often sent at several times the bitrate their picture needs
 
 It writes to `photos/enhanced/` and never touches your originals. The next step uses an enhanced copy automatically when one exists. Setup and usage are at the top of the script. It needs Python with Pillow, NumPy and OpenCV.
 
@@ -64,6 +65,6 @@ FFMPEG=/path/to/ffmpeg npm run photos
 | Story chapters | Any; cropped to 4:3 |
 | Venue photos | Landscape, 3:2 |
 | Gallery | Any shape; each photo keeps its own proportions |
-| Films | Short clips play in the gallery viewer |
+| Films | Short clips play in the gallery viewer. Every film also appears under the gallery's Films tab (`gallery.films`). |
 
 Give every gallery photo a short `alt` description of what it shows, for guests using screen readers.

@@ -378,6 +378,11 @@
       if (!button) return;
       showAlbum(button.dataset.album);
       layout();
+      // On phones the tabs scroll sideways: keep the chosen one in view.
+      if (filters.scrollWidth > filters.clientWidth) {
+        const left = button.offsetLeft - (filters.clientWidth - button.offsetWidth) / 2;
+        filters.scrollTo({ left, behavior: reduceMotion ? 'auto' : 'smooth' });
+      }
     });
     const first = filters?.querySelector('button[aria-pressed="true"]') || filters?.querySelector('button[data-album]');
     if (first) showAlbum(first.dataset.album);

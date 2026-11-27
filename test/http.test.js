@@ -52,6 +52,13 @@ test('public pages', async (t) => {
     assert.doesNotMatch(res.text, /data-album="all"/);
     assert.match(res.text, /aria-pressed="true" data-album="pre-wedding"/);
     assert.match(res.text, /data-album="registry"/);
+    const tabs = [...res.text.matchAll(/<button type="button" aria-pressed="(?:true|false)" data-album="([^"]+)"/g)].map((m) => m[1]);
+    assert.deepEqual(tabs, ['pre-wedding', 'first-date', 'proposal', 'iku-aka', 'parental-consent', 'church-introduction', 'registry', 'traditional-taste', 'jnc', 'moments', 'films']);
+    // The Films tab gathers every film on the site, each once.
+    const inFilms = res.text.match(/<li class="gallery__item gallery__item--film"[^>]*data-album="films"/g) || [];
+    const everyFilm = new Set([...res.text.matchAll(/data-video="([^"]+)"/g)].map((m) => m[1]));
+    assert.ok(everyFilm.size >= 10, 'films are prepared');
+    assert.equal(inFilms.length, everyFilm.size);
     // The printed card is shown and can be saved.
     assert.match(res.text, /invitation-iv-card-1334\.webp/);
     assert.match(res.text, /download="NEW-WINE-26-invitation\.jpg"/);

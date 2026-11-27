@@ -14,6 +14,8 @@ For each photo:
      careful classical enlargement (light denoise, Lanczos, gentle sharpening).
 
 Videos can be trimmed: --trim START (seconds) keeps the clip from START onwards.
+--polish lightly denoises and sharpens a video and re-encodes it at a sensible size
+(phone clips are often sent at several times the bitrate their picture needs).
 
 Setup (once, in any virtual environment):
   pip install pillow numpy opencv-python-headless
@@ -24,6 +26,7 @@ Setup (once, in any virtual environment):
 Usage:
   python scripts/enhance.py photos/registry/"WhatsApp Image ….jpeg" … [--models DIR]
   python scripts/enhance.py photos/registry/video.mp4 --trim 20 --ffmpeg /path/to/ffmpeg
+  python scripts/enhance.py photos/registry/video.mp4 --polish --ffmpeg /path/to/ffmpeg
 """
 import argparse
 import os
@@ -182,16 +185,23 @@ def enhance_image(src, model, blend, max_side, tone=True):
     return dest, notes
 
 
-def trim_video(src, start, ffmpeg):
+def process_video(src, start, polish, ffmpeg):
     dest = out_path(src, '.mp4')
     os.makedirs(os.path.dirname(dest), exist_ok=True)
-    cmd = [ffmpeg, '-v', 'error', '-y', '-ss', str(start), '-i', src, '-map_metadata', '-1',
+    # Polish: soften compression noise in time and space, then a gentle luminance sharpen.
+    vf = ['-vf', 'hqdn3d=1.5:1.5:6:6,unsharp=5:5:0.6:5:5:0'] if polish else []
+    # Bitrate cap by picture size: about 700k for a 360p phone clip, never above 1200k.
+    cap = cv2.VideoCapture(src)
+    pixels = cap.get(cv2.CAP_PROP_FRAME_WIDTH) * cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    cap.release()
+    rate = int(min(1200, max(500, pixels * 0.003))) if pixels else 1200
+    cmd = [ffmpeg, '-v', 'error', '-y', *(['-ss', str(start)] if start else []), '-i', src, '-map_metadata', '-1', *vf,
            # Phone clips are already compressed and grainy: a moderate quality with a bitrate
-           # cap keeps the trimmed clip no larger, per second, than the original.
-           '-c:v', 'libx264', '-crf', '26', '-maxrate', '1200k', '-bufsize', '2400k', '-preset', 'slow', '-pix_fmt', 'yuv420p',
+           # cap keeps the clip no larger, per second, than the original.
+           '-c:v', 'libx264', '-crf', '26', '-maxrate', f'{rate}k', '-bufsize', f'{rate * 2}k', '-preset', 'slow', '-pix_fmt', 'yuv420p',
            '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', dest]
     subprocess.run(cmd, check=True)
-    return dest, [f'trimmed from {start}s']
+    return dest, [n for n in (start and f'trimmed from {start}s', polish and 'denoised and sharpened') if n]
 
 
 def main():
@@ -203,6 +213,7 @@ def main():
     p.add_argument('--max-side', type=int, default=2600, help='only enlarge photos whose long side doubled stays within this')
     p.add_argument('--keep-tone', action='store_true', help='enlarge only: leave colours as they are (designed cards, graphics)')
     p.add_argument('--trim', type=float, help='videos: start the clip this many seconds in')
+    p.add_argument('--polish', action='store_true', help='videos: light denoise and sharpening, re-encoded at a sensible size')
     p.add_argument('--ffmpeg', default=shutil.which('ffmpeg') or 'ffmpeg')
     args = p.parse_args()
 
@@ -212,10 +223,10 @@ def main():
         print('Enlarging with', 'Real-ESRGAN general v3' if model else 'the classical method (no model found)')
     for f in args.files:
         if f.lower().endswith(('.mp4', '.mov', '.m4v')):
-            if args.trim is None:
-                print(f'  skip {f}: videos are only changed with --trim')
+            if args.trim is None and not args.polish:
+                print(f'  skip {f}: videos are only changed with --trim or --polish')
                 continue
-            dest, notes = trim_video(f, args.trim, args.ffmpeg)
+            dest, notes = process_video(f, args.trim or 0, args.polish, args.ffmpeg)
         else:
             dest, notes = enhance_image(f, model, args.blend, args.max_side, tone=not args.keep_tone)
         print(f'  {os.path.relpath(dest, ROOT)}  ({", ".join(notes) or "unchanged"})')

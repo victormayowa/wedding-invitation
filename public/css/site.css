@@ -897,3 +897,41 @@ legend.field__label { margin-bottom: 12px; }
   .letter__img { position: static; }
   .note-card { background: none; color: var(--ink); }
 }
+
+/* ---------- Gallery: many albums ---------- */
+
+/* The album tabs take their own row beneath the title. */
+.gallery__filters { flex: 1 1 100%; }
+
+@media (max-width: 599px) {
+  /* On phones they scroll sideways in one line instead of stacking. */
+  .gallery__filters {
+    flex-wrap: nowrap; overflow-x: auto; margin-inline: calc(-1 * var(--gutter)); padding: 2px 36px 8px var(--gutter);
+    scrollbar-width: none; overscroll-behavior-x: contain;
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent);
+  }
+  .gallery__filters::-webkit-scrollbar { display: none; }
+  .gallery__filters button { flex: none; }
+}
+
+/* ---------- Invitation: the printed card in the photographs' top corner ---------- */
+
+.about__card {
+  position: absolute; top: -12px; right: 0; z-index: 2; display: block; width: 36%; padding: 8px;
+  border-radius: 22px; background: var(--white); box-shadow: 0 30px 60px -28px rgba(28, 16, 20, 0.55);
+  rotate: 4deg; transition: rotate 0.5s var(--ease), scale 0.5s var(--ease);
+}
+.about__card:hover, .about__card:focus-visible { rotate: 0deg; scale: 1.03; }
+.about__card .media { overflow: hidden; border-radius: 14px; }
+.about__card-open {
+  position: absolute; right: -12px; bottom: -12px; display: grid; place-items: center; width: 46px; height: 46px;
+  border: 4px solid var(--white); border-radius: 50%; background: var(--wine); color: var(--white);
+}
+.about__card-open .icon { width: 18px; height: 18px; }
+
+@media (max-width: 599px) {
+  .about__card { top: -8px; width: 38%; padding: 6px; border-radius: 16px; }
+  .about__card .media { border-radius: 11px; }
+  .about__card-open { width: 38px; height: 38px; right: -8px; bottom: -8px; }
+}
