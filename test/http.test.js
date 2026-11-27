@@ -60,7 +60,10 @@ test('public pages', async (t) => {
     assert.match(home.text, /aria-label="Play film: Victor and Adaeze embracing as guests look on"/);
     assert.match(home.text, /<\/svg> 0:10<\/span>/);
     assert.match(home.text, /NEW WINE’26/);
-    assert.match(home.text, /href="\/images\/proposal-03-810\.jpg"/);
+    assert.match(home.text, /href="\/images\/proposal-03-810\.webp"/, 'gallery links open the largest WebP');
+    assert.match(home.text, /pre-wedding-dsc-6740-2400\.webp 2400w/, 'professional photos offer a 2400 px WebP');
+    assert.doesNotMatch(home.text, /-2400\.jpg/, 'JPEG fallbacks stop at 1600 px');
+    assert.match(home.text, /aria-label="Play film: Victor and Adaeze arriving at the registry with family"/);
 
     const full = await c.get('/videos/proposal-film-2.mp4');
     assert.equal(full.status, 200);

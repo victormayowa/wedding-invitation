@@ -93,13 +93,21 @@ function hero(ctx) {
   else strip = html`<p class="hero__moment">Married on ${ctx.clock.dateLong(c.date)}. Thank you for celebrating with us.</p>`;
 
   const panels = slides.filter((s) => s.image);
+  /* A panel is filled edge to edge, so a portrait photo is drawn at the panel's full height
+     (the height of the screen) and is wider than the panel itself. Describe that drawn
+     width to the browser so every screen fetches a large enough copy. */
+  const drawnWidth = (name) => {
+    const img = ctx.images.get(name);
+    const tall = Math.round(100 * (img ? img.w / img.h : 0.8));
+    return `(min-width: 768px) max(${Math.round(100 / panels.length)}vw, ${tall}vh), max(100vw, ${tall}vh)`;
+  };
   return html`<section class="hero" aria-labelledby="hero-title" data-slider>
     <div class="hero__backdrop" style="--panels:${Math.max(1, panels.length)}" aria-hidden="true">
       ${panels.map(
         (s, i) => html`<div class="hero__panel${i === 0 ? ' is-active' : ''}" data-panel>${picture(ctx, s.image, {
           alt: '',
           eager: i === 0,
-          sizes: `(min-width: 768px) ${Math.round(100 / panels.length)}vw, 100vw`,
+          sizes: drawnWidth(s.image),
           reveal: false,
           cls: 'media--cover',
         })}</div>`,
@@ -396,11 +404,12 @@ function gallery(ctx) {
       const img = ctx.images.get(im.src);
       const webp = img.widths.map((w) => `/images/${img.name}-${w}.webp ${w}w`).join(', ');
       const i = index++;
-      const full = `/images/${img.name}-${img.widths[img.widths.length - 1]}.jpg`;
+      const full = `/images/${img.name}-${img.jpg[img.jpg.length - 1]}.jpg`;
+      const largest = `/images/${img.name}-${img.widths[img.widths.length - 1]}.webp`;
       const film = img.video;
       const label = im.alt || a.title;
       return html`<li class="gallery__item${film ? ' gallery__item--film' : ''}" style="--ar:${(img.w / img.h).toFixed(4)}" data-album="${a.id}">
-        <a class="gallery__open image-anime" href="${film ? film.src : full}" data-index="${i}" data-srcset="${webp}" data-src="${full}"${film ? html` data-video="${film.src}"` : ''} data-caption="${im.caption || ''}" data-alt="${im.alt || ''}" aria-label="${film ? `Play film: ${label}` : `View photo: ${label}`}">
+        <a class="gallery__open image-anime" href="${film ? film.src : largest}" data-index="${i}" data-srcset="${webp}" data-src="${full}"${film ? html` data-video="${film.src}"` : ''} data-caption="${im.caption || ''}" data-alt="${im.alt || ''}" aria-label="${film ? `Play film: ${label}` : `View photo: ${label}`}">
           ${picture(ctx, im.src, { alt: im.alt || '', sizes: '(min-width: 992px) 25vw, 50vw', reveal: false })}
           ${film ? html`<span class="gallery__film" aria-hidden="true">${icon('play')} ${Math.floor(film.duration / 60)}:${String(film.duration % 60).padStart(2, '0')}</span>` : ''}
         </a>

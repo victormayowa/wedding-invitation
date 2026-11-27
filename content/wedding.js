@@ -54,15 +54,15 @@ export default {
     /** Shown beneath the invitation, e.g. 'The family of Chief & Mrs …'. Remove a line you don't need. */
     families: [tbc('Adaeze’s family, e.g. “The family of Mr & Mrs …”'), tbc('Victor’s family')],
     /** Photos beside the invitation: a tall one, then a small square one. */
-    images: ['proposal-03', 'proposal-02'],
+    images: ['pre-wedding-dsc-7005', 'pre-wedding-dsc-6935'],
   },
 
   hero: {
-    /** Engagement or pre-wedding portrait, upright (4:5) works best. */
-    image: 'proposal-04',
-    alt: 'Victor and Adaeze smiling beneath a neon sign that reads “Will You Marry Me?”',
+    /** Engagement or pre-wedding portrait, upright (4:5) works best. Also the WhatsApp link preview. */
+    image: 'pre-wedding-dsc-6740',
+    alt: 'Victor in a white jacket and Adaeze in a red lace dress, smiling',
     /** Further photos for the opening slideshow, after the main image. */
-    slides: ['proposal-05', 'proposal-01'],
+    slides: ['pre-wedding-dsc-6992', 'pre-wedding-dsc-6868'],
     credit: null, // e.g. 'Photograph by …'
   },
 
@@ -244,9 +244,32 @@ export default {
   gallery: {
     /**
      * Each image: { src: 'photo-name', alt: 'What the photo shows', caption: 'optional' }
+     * Photo names come from the folder and file name: `npm run photos -- --list` prints them all.
      * Add a 'Wedding day' album after the celebration.
      */
     albums: [
+      {
+        id: 'pre-wedding',
+        title: 'Pre-wedding',
+        images: [
+          { src: 'pre-wedding-dsc-6740', alt: 'Victor in a white jacket and Adaeze in a red lace dress, smiling' },
+          { src: 'pre-wedding-dsc-6992', alt: 'Victor and Adaeze embracing in traditional attire' },
+          { src: 'pre-wedding-dsc-6935', alt: 'Their hands together, showing the engagement ring' },
+          { src: 'pre-wedding-dsc-7005', alt: 'Victor and Adaeze forehead to forehead in traditional attire' },
+          { src: 'pre-wedding-dsc-6742', alt: 'Victor and Adaeze arm in arm, smiling at each other' },
+          { src: 'pre-wedding-dsc-6851', alt: 'Victor and Adaeze making a heart with their hands' },
+          { src: 'pre-wedding-dsc-7070', alt: 'Adaeze in a pink gele and green lace' },
+          { src: 'pre-wedding-dsc-7101', alt: 'Victor in white traditional attire and a blue cap' },
+          { src: 'pre-wedding-dsc-6981', alt: 'Victor and Adaeze seated in traditional attire' },
+          { src: 'pre-wedding-dsc-6800', alt: 'Adaeze leaning over Victor, both in sunglasses, laughing' },
+          { src: 'pre-wedding-dsc-6868', alt: 'Victor and Adaeze in white shirts, smiling' },
+          { src: 'pre-wedding-dsc-7029', alt: 'Adaeze smiling in a pink gele, Victor in the foreground' },
+          { src: 'pre-wedding-dsc-6795', alt: 'Adaeze in sunglasses resting her arms on Victor’s shoulders' },
+          { src: 'pre-wedding-dsc-7025', alt: 'Victor and Adaeze celebrating in traditional attire' },
+          { src: 'pre-wedding-dsc-7038', alt: 'Adaeze in a pink gele, framed by Victor’s arm' },
+          { src: 'pre-wedding-dsc-7092', alt: 'Adaeze in a pink gele, seen past Victor’s shoulder' },
+        ],
+      },
       {
         id: 'proposal',
         title: 'The proposal',
@@ -260,8 +283,41 @@ export default {
           { src: 'proposal-04', alt: 'Victor and Adaeze smiling beneath the neon sign' },
         ],
       },
-      { id: 'engagement', title: 'Engagement', images: [] },
-      { id: 'pre-wedding', title: 'Pre-wedding', images: [] },
+      {
+        id: 'church-introduction',
+        title: 'Church introduction',
+        images: [
+          { src: 'church-introduction-2026-11-22-15-42-35', alt: 'Victor and Adaeze outside the church' },
+          { src: 'church-introduction-2026-11-22-15-42-33', alt: 'Victor and Adaeze with family outside the church' },
+          { src: 'church-introduction-2026-11-22-15-42-35-3', alt: 'Victor and Adaeze with family' },
+          { src: 'church-introduction-2026-11-22-15-42-38-1', alt: 'Victor and Adaeze with family and church members' },
+          { src: 'church-introduction-2026-11-22-15-42-42', alt: 'Adaeze with a family member in a gold gele' },
+          { src: 'church-introduction-2026-11-22-15-42-35-1', alt: 'Victor and Adaeze with a guest in blue' },
+          { src: 'church-introduction-2026-11-22-15-42-36-1', alt: 'Victor and Adaeze with family, including a little one in yellow' },
+          { src: 'church-introduction-2026-11-22-15-42-34-1', alt: 'Adaeze with a family member in light blue' },
+          { src: 'church-introduction-2026-11-22-15-42-39-1', alt: 'Family at the church introduction' },
+          { src: 'church-introduction-2026-11-22-15-42-40-1', alt: 'A family member in a gold gele' },
+        ],
+      },
+      {
+        id: 'registry',
+        title: 'Registry',
+        images: [
+          { src: 'registry-2026-11-24-17-01-18-1', alt: 'Victor and Adaeze outside, she holding her bouquet' },
+          { src: 'registry-2026-11-25-02-49-55-1', alt: 'Victor and Adaeze at the Federal Marriage Registry' },
+          { src: 'registry-2026-11-25-02-49-55', alt: 'Victor signing the marriage register' },
+          { src: 'registry-2026-11-25-02-49-57-4', alt: 'Adaeze signing the marriage register' },
+          { src: 'registry-2026-11-25-02-49-56-3', alt: 'Victor and Adaeze smiling with their marriage certificate' },
+          { src: 'registry-2026-11-24-17-37-54', alt: 'Victor and Adaeze arriving at the registry with family' },
+          { src: 'registry-2026-11-25-02-49-58-2', alt: 'Victor and Adaeze at the registry sign' },
+          { src: 'registry-2026-11-25-02-49-57-2', alt: 'Victor and Adaeze with family at the registry' },
+          { src: 'registry-2026-11-25-02-49-57-3', alt: 'Victor and Adaeze with family and friends' },
+          { src: 'registry-2026-11-25-02-49-53', alt: 'Victor and Adaeze seated at the registry table' },
+          { src: 'registry-2026-11-25-02-49-59', alt: 'Victor and Adaeze with friends at the registry' },
+          { src: 'registry-2026-11-24-17-01-19-1', alt: 'Victor and Adaeze walking together' },
+          { src: 'registry-2026-11-25-02-49-58-3', alt: 'Victor at the Federal Marriage Registry' },
+        ],
+      },
       { id: 'moments', title: 'Moments together', images: [] },
     ],
   },
@@ -339,6 +395,8 @@ export default {
     message:
       'We are grateful for the people, moments and blessings that have brought us to this day. Thank you for being part of our story. We cannot wait to celebrate this new chapter with you.',
     signoff: 'With love,',
+    /** Background photo for the closing band, under a deep wine overlay. */
+    image: 'pre-wedding-dsc-6851',
     /** Shown after the wedding day. */
     after: 'Thank you for celebrating with us. Your love, prayers and presence meant more to us than words can say.',
   },

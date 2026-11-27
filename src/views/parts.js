@@ -50,8 +50,8 @@ export function picture(ctx, name, { alt = '', sizes = '100vw', ratio = null, ea
     if (filled(name)) return plate(`“${name}” hasn’t been prepared yet: add it to /photos and run npm run photos`, ratio || '4 / 5', cls);
     return '';
   }
-  const srcset = (ext) => img.widths.map((w) => `/images/${img.name}-${w}.${ext} ${w}w`).join(', ');
-  const fallback = img.widths.find((w) => w >= 1024) || img.widths[img.widths.length - 1];
+  const srcset = (ext) => (ext === 'jpg' ? img.jpg : img.widths).map((w) => `/images/${img.name}-${w}.${ext} ${w}w`).join(', ');
+  const fallback = img.jpg.find((w) => w >= 1024) || img.jpg[img.jpg.length - 1];
   const tone = safeColor(img.color) || '#e2d8c8';
   return html`<div class="media ${cls}${ratio ? ' media--crop' : ''}" style="--ar:${ratio || `${img.w} / ${img.h}`};--tone:${tone}"${reveal ? raw(' data-reveal') : ''}>
     <picture>

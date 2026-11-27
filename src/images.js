@@ -25,11 +25,14 @@ export function createImages(publicDir) {
   }
 
   return {
-    /** Returns { name, w, h, color, widths, formats } or null when the photo hasn't been prepared. */
+    /**
+     * Returns { name, w, h, color, widths, jpg, video? } or null when the photo hasn't been prepared.
+     * widths lists the WebP sizes; jpg the JPEG fallbacks, which stop at 1600 px.
+     */
     get(name) {
       if (typeof name !== 'string' || !name) return null;
       const entry = load()[name];
-      return entry ? { name, ...entry } : null;
+      return entry ? { name, ...entry, jpg: entry.jpg || entry.widths } : null;
     },
     all() {
       return load();

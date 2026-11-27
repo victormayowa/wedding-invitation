@@ -56,16 +56,22 @@ Everything guests read is in **[content/wedding.js](content/wedding.js)**, a pla
 
 ### Photographs
 
-1. Put your original photos in the `photos/` folder.
-2. Run this:
+1. Put your original photos in the `photos/` folder, in album folders if you like (`photos/registry/`).
+2. Refer to each photo in `content/wedding.js` by its name: its folder and file name in lower case with hyphens, e.g. `'pre-wedding-dsc-6740'` for `photos/pre-wedding/DSC_6740.jpg`. This lists every name:
+
+```bash
+npm run photos -- --list
+```
+
+3. Prepare the photos the site uses:
 
 ```bash
 npm run photos
 ```
 
-3. Refer to each photo by its file name without the extension, e.g. `image: 'hero'` for `photos/hero.jpg`.
+The script makes right-sized, sharp copies and removes location data. The opening portrait becomes the image shown in WhatsApp link previews. Short videos (MP4 or MOV) appear in the gallery marked as films and play in the viewer; they need [ffmpeg](https://ffmpeg.org).
 
-The script makes fast, right-sized copies and removes location data. The portrait becomes the image shown in WhatsApp link previews. Short videos (MP4 or MOV) work the same way: they appear in the gallery marked “Film” and play in the viewer. Videos need [ffmpeg](https://ffmpeg.org) installed. See [photos/README.md](photos/README.md).
+Small or washed-out phone photos can be repaired first with `scripts/enhance.py`, which restores contrast and doubles their size without touching the originals. See [photos/README.md](photos/README.md).
 
 ## Sending invitations
 

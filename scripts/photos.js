@@ -2,38 +2,58 @@
 /**
  * Prepares photographs (and short films) for the website.
  *
- *   1. Put original photos in the /photos folder (JPEG, PNG or WebP), and any
- *      short videos (MP4, MOV or M4V).
- *   2. Run `npm run photos`.
- *   3. Refer to each one in content/wedding.js by its file name without the
- *      extension: photos/proposal.jpg becomes 'proposal'.
+ *   1. Put photos in the /photos folder, loose or in album folders such as
+ *      photos/registry/ (JPEG, PNG or WebP), and any short videos (MP4, MOV, M4V).
+ *   2. Refer to each one in content/wedding.js by its name: folder and file name in
+ *      lower case with hyphens. photos/pre-wedding/DSC_6740.jpg is 'pre-wedding-dsc-6740';
+ *      phone clutter is dropped, so "WhatsApp Image 2026-11-24 at 17.01.18 (1).jpeg" in
+ *      photos/registry is 'registry-2026-11-24-17-01-18-1'. `npm run photos -- --list`
+ *      prints every name.
+ *   3. Run `npm run photos`. It prepares the photos the site uses.
+ *        --all    prepare every photo in /photos, used or not
+ *        --prune  delete prepared copies the site no longer uses
+ *        --list   print the name of every photo in /photos
  *
- * Photos are saved to public/images at several widths (640, 1024, 1600, 2400 and
- * the original width, never enlarged) in WebP and JPEG. public/images/manifest.json
- * records each one's size and average tone so pages can reserve space and show a
- * matching colour while it loads.
+ * Improved copies made by scripts/enhance.py (photos/enhanced/…) are used in place
+ * of their originals automatically.
  *
- * Films are saved to public/videos, ready to stream, with a poster frame prepared
- * like a photo. In the gallery they open in the viewer and play there. Films need
- * ffmpeg installed (https://ffmpeg.org); photos do not.
+ * Photos become WebP at 640, 1024, 1600 and 2400 pixels wide (never enlarged; a
+ * smaller photo also keeps its own width) with JPEG fallbacks up to 1600, all in
+ * sRGB with camera and location data removed. Large photos get a light sharpen
+ * after reduction. public/images/manifest.json records each one's size and average
+ * tone so pages can reserve the space and show a matching colour while it loads.
  *
- * Location data and other camera metadata are removed from every copy.
+ * Films become stream-ready MP4s in public/videos with a poster frame. They need
+ * ffmpeg: on PATH, or set FFMPEG (and optionally FFPROBE) to its location.
+ *
  * The opening portrait also becomes public/images/og.jpg, the picture shown in
  * WhatsApp and social media link previews.
+ *
+ * Prepared copies are kept even when an original is not on this computer, so the
+ * site never loses photos that were prepared elsewhere. Only --prune removes them.
  */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE = path.resolve(process.env.PHOTOS_DIR || path.join(ROOT, 'photos'));
+const ENHANCED = path.join(SOURCE, 'enhanced');
 const OUT = path.resolve(process.env.IMAGES_DIR || path.join(ROOT, 'public', 'images'));
 const VIDEO_OUT = path.resolve(process.env.VIDEOS_DIR || path.join(ROOT, 'public', 'videos'));
 const WIDTHS = [640, 1024, 1600, 2400];
+const JPEG_MAX = 1600;
 const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp']);
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mov', '.m4v']);
+const FFMPEG = process.env.FFMPEG || 'ffmpeg';
+const FFPROBE = process.env.FFPROBE || 'ffprobe';
+
+const flags = new Set(process.argv.slice(2));
+const ALL = flags.has('--all');
+const PRUNE = flags.has('--prune');
+const LIST = flags.has('--list');
 
 let sharp;
 try {
@@ -43,68 +63,128 @@ try {
   process.exit(1);
 }
 
-async function heroName() {
-  try {
-    const { default: content } = await import(path.join(ROOT, 'content', 'wedding.js'));
-    return typeof content.hero?.image === 'string' ? content.hero.image : 'hero';
-  } catch {
-    return 'hero';
-  }
-}
+/* ---------- Names ---------- */
 
-const slug = (file) =>
-  path
-    .basename(file, path.extname(file))
+/** 'registry/WhatsApp Image 2026-11-24 at 17.01.18 (1).jpeg' → 'registry-2026-11-24-17-01-18-1' */
+function photoName(rel) {
+  return rel
+    .slice(0, rel.length - path.extname(rel).length)
+    .split(path.sep)
+    .join('/')
     .toLowerCase()
     .normalize('NFKD')
     .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/whatsapp (image|video) /g, '')
+    .replace(/ copy( \d+)?(?=$|\/)/g, '')
+    .replace(/ at (?=\d)/g, ' ')
+    .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
+}
+
+/** Every photo and film in /photos, with the enhanced copy used where one exists. */
+function discover() {
+  const found = [];
+  const walk = (dir, depth) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name.startsWith('.') || entry.name.startsWith('_')) continue;
+      const abs = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (!(depth === 0 && entry.name === 'enhanced') && depth < 3) walk(abs, depth + 1);
+        continue;
+      }
+      const ext = path.extname(entry.name).toLowerCase();
+      const isVideo = VIDEO_EXTENSIONS.has(ext);
+      if (!isVideo && !IMAGE_EXTENSIONS.has(ext)) continue;
+      const rel = path.relative(SOURCE, abs);
+      const better = path.join(ENHANCED, rel.slice(0, rel.length - ext.length) + (isVideo ? '.mp4' : '.jpg'));
+      const enhanced = fs.existsSync(better);
+      found.push({ rel: rel.split(path.sep).join('/'), name: photoName(rel), isVideo, enhanced, file: enhanced ? better : abs });
+    }
+  };
+  walk(SOURCE, 0);
+  return found.sort((a, b) => a.rel.localeCompare(b.rel));
+}
+
+/** The photo names content/wedding.js refers to. */
+async function photoRefs() {
+  const { default: c } = await import(pathToFileURL(path.join(ROOT, 'content', 'wedding.js')).href);
+  const refs = [
+    c.hero?.image,
+    ...(c.hero?.slides || []),
+    ...(c.invitation?.images || []),
+    c.closing?.image,
+    ...(c.story?.chapters || []).map((ch) => ch.image),
+    ...(c.events || []).map((e) => e.venue?.image),
+    ...(c.gallery?.albums || []).flatMap((a) => (a.images || []).map((im) => im.src)),
+  ];
+  return { refs: new Set(refs.filter((r) => typeof r === 'string' && r)), hero: typeof c.hero?.image === 'string' ? c.hero.image : null };
+}
+
+/* ---------- Photos ---------- */
 
 const hex = (n) => n.toString(16).padStart(2, '0');
 
-/** Widths to generate: the standard steps up to the photo's own width, plus the original if it sits well above the last step. */
+/** The standard widths up to the photo's own width, plus its own width when it falls well between two steps. */
 function widthsFor(width) {
   const widths = WIDTHS.filter((w) => w <= width);
-  if (!widths.length || width - widths[widths.length - 1] > 120) widths.push(width);
+  const last = widths[widths.length - 1];
+  if (!widths.length || (width < WIDTHS[WIDTHS.length - 1] && width - last > 120)) widths.push(width);
   return widths;
 }
 
 async function prepareImage(file, name) {
-  const { data, info } = await sharp(file, { failOn: 'none' }).rotate().toBuffer({ resolveWithObject: true });
+  // Decode once: upright, converted to sRGB from any embedded colour profile.
+  const { data, info } = await sharp(file, { failOn: 'none' })
+    .rotate()
+    .toColourspace('srgb')
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const raw = { raw: { width: info.width, height: info.height, channels: info.channels } };
   const { width, height } = info;
-  const tone = await sharp(data).resize(1, 1, { fit: 'cover' }).removeAlpha().raw().toBuffer();
+  const tone = await sharp(data, raw).resize(1, 1, { fit: 'cover' }).removeAlpha().raw().toBuffer();
   const widths = widthsFor(width);
+  const jpg = widths.filter((w) => w <= JPEG_MAX);
+  if (!jpg.length) jpg.push(widths[0]);
   for (const w of widths) {
-    const resized = sharp(data).resize({ width: w, withoutEnlargement: true });
-    await resized.clone().webp({ quality: 80, effort: 5 }).toFile(path.join(OUT, `${name}-${w}.webp`));
-    await resized
-      .clone()
-      .flatten({ background: '#f3ede3' })
-      .jpeg({ quality: 82, progressive: true, mozjpeg: true })
-      .toFile(path.join(OUT, `${name}-${w}.jpg`));
+    let img = sharp(data, raw).resize({ width: w, withoutEnlargement: true, kernel: 'lanczos3' });
+    // Reduction softens fine detail; restore it gently on luminance only.
+    if (width / w >= 1.5) img = img.sharpen({ sigma: 0.55, m1: 0.6, m2: 1.6 });
+    await img.clone().webp({ quality: 82, effort: 5, smartSubsample: true }).toFile(path.join(OUT, `${name}-${w}.webp`));
+    if (jpg.includes(w)) {
+      await img
+        .clone()
+        .flatten({ background: '#ffffff' })
+        .jpeg({ quality: 82, progressive: true, mozjpeg: true })
+        .toFile(path.join(OUT, `${name}-${w}.jpg`));
+    }
   }
-  return { w: width, h: height, color: `#${hex(tone[0])}${hex(tone[1])}${hex(tone[2])}`, widths };
+  return { w: width, h: height, color: `#${hex(tone[0])}${hex(tone[1])}${hex(tone[2])}`, widths, jpg };
 }
 
 /* ---------- Films ---------- */
 
-const hasFfmpeg = () =>
-  spawnSync('ffmpeg', ['-version'], { stdio: 'ignore' }).status === 0 &&
-  spawnSync('ffprobe', ['-version'], { stdio: 'ignore' }).status === 0;
+const hasFfmpeg = () => spawnSync(FFMPEG, ['-version'], { stdio: 'ignore' }).status === 0;
 
 function probe(file) {
-  const r = spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration:stream=codec_type,codec_name', '-of', 'json', file], {
+  const r = spawnSync(FFPROBE, ['-v', 'error', '-show_entries', 'format=duration:stream=codec_type,codec_name', '-of', 'json', file], {
     encoding: 'utf8',
   });
-  if (r.status !== 0) throw new Error(`Could not read ${path.basename(file)}: ${r.stderr.trim()}`);
-  const j = JSON.parse(r.stdout);
-  const stream = (type) => j.streams.find((s) => s.codec_type === type)?.codec_name;
-  return { duration: Number(j.format.duration) || 0, video: stream('video'), audio: stream('audio') };
+  if (r.status === 0) {
+    const j = JSON.parse(r.stdout);
+    const stream = (type) => j.streams.find((s) => s.codec_type === type)?.codec_name;
+    return { duration: Number(j.format.duration) || 0, video: stream('video'), audio: stream('audio') };
+  }
+  // No ffprobe: read the same facts from ffmpeg's own description of the file.
+  const text = spawnSync(FFMPEG, ['-hide_banner', '-i', file], { encoding: 'utf8' }).stderr || '';
+  const d = /Duration: (\d+):(\d+):([\d.]+)/.exec(text);
+  const v = /Stream[^\n]*Video: (\w+)/.exec(text);
+  if (!d || !v) throw new Error(`Could not read ${path.basename(file)}`);
+  const a = /Stream[^\n]*Audio: (\w+)/.exec(text);
+  return { duration: Number(d[1]) * 3600 + Number(d[2]) * 60 + Number(d[3]), video: v[1], audio: a?.[1] };
 }
 
 function ffmpeg(args) {
-  const r = spawnSync('ffmpeg', ['-v', 'error', '-y', ...args], { encoding: 'utf8' });
+  const r = spawnSync(FFMPEG, ['-v', 'error', '-y', ...args], { encoding: 'utf8' });
   if (r.status !== 0) throw new Error(r.stderr.trim() || 'ffmpeg failed');
 }
 
@@ -161,66 +241,76 @@ async function main() {
     previous = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
   } catch {}
 
-  const files = fs
-    .readdirSync(SOURCE)
-    .filter((f) => IMAGE_EXTENSIONS.has(path.extname(f).toLowerCase()) || VIDEO_EXTENSIONS.has(path.extname(f).toLowerCase()))
-    .sort();
-  if (!files.length) {
-    console.log(`\n  No photos in ${path.relative(ROOT, SOURCE) || SOURCE}. Add photos or films and run this again.\n`);
+  const { refs, hero } = await photoRefs();
+  const sources = new Map();
+  for (const s of discover()) {
+    if (!s.name) continue;
+    if (sources.has(s.name)) {
+      console.warn(`  Skipping photos/${s.rel}: it has the same name as photos/${sources.get(s.name).rel}.`);
+      continue;
+    }
+    sources.set(s.name, s);
+  }
+
+  if (LIST) {
+    for (const s of sources.values()) console.log(`  ${refs.has(s.name) ? '●' : '○'} ${s.name}  ← photos/${s.rel}${s.enhanced ? ' (enhanced)' : ''}`);
+    console.log('\n  ● used on the site   ○ not used\n');
     return;
   }
 
   const ffmpegReady = hasFfmpeg();
-  const hero = await heroName();
-  const manifest = {};
-  const seen = new Map();
+  const manifest = { ...previous };
   const skipped = [];
+  let prepared = 0;
 
-  for (const f of files) {
-    const file = path.join(SOURCE, f);
-    const name = slug(f);
-    const isVideo = VIDEO_EXTENSIONS.has(path.extname(f).toLowerCase());
-    if (!name) continue;
-    if (seen.has(name)) {
-      console.warn(`  Skipping ${f}: it has the same name as ${seen.get(name)}.`);
+  for (const s of sources.values()) {
+    if (!ALL && !refs.has(s.name)) continue;
+    if (s.isVideo && !ffmpegReady) {
+      skipped.push(s.rel);
       continue;
     }
-    seen.set(name, f);
-    if (isVideo && !ffmpegReady) {
-      skipped.push(f);
-      if (previous[name]) manifest[name] = previous[name];
-      continue;
-    }
+    const old = previous[s.name];
+    const mtime = Math.round(fs.statSync(s.file).mtimeMs);
+    const fresh = old && old.source === s.rel && old.mtime === mtime && Boolean(old.enhanced) === s.enhanced && outputsExist(s.name, old);
+    if (fresh) continue;
+    process.stdout.write(`  photos/${s.rel}${s.enhanced ? ' (enhanced)' : ''} → ${s.name} `);
+    if (s.isVideo) fs.mkdirSync(VIDEO_OUT, { recursive: true });
+    if (old) removeOutputs(s.name, old);
+    const entry = s.isVideo ? await prepareVideo(s.file, s.name) : await prepareImage(s.file, s.name);
+    manifest[s.name] = { ...entry, source: s.rel, ...(s.enhanced ? { enhanced: true } : {}), mtime };
+    prepared++;
+    console.log(`(${entry.w}×${entry.h}${entry.video ? `, film ${entry.video.duration}s` : ''})`);
+  }
 
-    const old = previous[name];
-    const mtime = Math.round(fs.statSync(file).mtimeMs);
-    if (old && old.source === f && old.mtime === mtime && outputsExist(name, old)) {
-      manifest[name] = old;
-    } else {
-      process.stdout.write(`  ${f} → ${name} `);
-      if (isVideo) fs.mkdirSync(VIDEO_OUT, { recursive: true });
-      if (old) removeOutputs(name, old);
-      const entry = isVideo ? await prepareVideo(file, name) : await prepareImage(file, name);
-      manifest[name] = { ...entry, source: f, mtime };
-      console.log(`(${entry.w}×${entry.h}${entry.video ? `, film ${entry.video.duration}s` : ''})`);
-    }
+  const heroSource = hero && sources.get(hero);
+  if (heroSource && !heroSource.isVideo) {
+    await sharp(heroSource.file, { failOn: 'none' })
+      .rotate()
+      .resize(1200, 630, { fit: 'cover', position: sharp.strategy.attention })
+      .jpeg({ quality: 84, mozjpeg: true })
+      .toFile(path.join(OUT, 'og.jpg'));
+  }
 
-    if (name === hero && !isVideo) {
-      await sharp(file, { failOn: 'none' })
-        .rotate()
-        .resize(1200, 630, { fit: 'cover', position: sharp.strategy.attention })
-        .jpeg({ quality: 84, mozjpeg: true })
-        .toFile(path.join(OUT, 'og.jpg'));
+  let pruned = 0;
+  if (PRUNE) {
+    for (const name of Object.keys(manifest)) {
+      if (refs.has(name)) continue;
+      removeOutputs(name, manifest[name]);
+      delete manifest[name];
+      pruned++;
     }
   }
 
-  const removed = Object.keys(previous).filter((k) => !manifest[k]);
-  for (const name of removed) removeOutputs(name, previous[name]);
+  const sorted = Object.fromEntries(Object.entries(manifest).sort(([a], [b]) => a.localeCompare(b)));
+  fs.writeFileSync(manifestFile, JSON.stringify(sorted, null, 2) + '\n');
 
-  fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2) + '\n');
-  console.log(`\n  ${Object.keys(manifest).length} photos and films ready.${removed.length ? ` Removed ${removed.length} no longer in /photos.` : ''}`);
-  if (manifest[hero]) console.log('  Link preview image: public/images/og.jpg');
-  if (skipped.length) console.log(`  Install ffmpeg to prepare these films: ${skipped.join(', ')}`);
+  const missing = [...refs].filter((r) => !manifest[r]);
+  const unused = [...sources.keys()].filter((n) => !refs.has(n)).length;
+  console.log(`\n  ${prepared} prepared, ${Object.keys(manifest).length} ready in total.${pruned ? ` Removed ${pruned} no longer used.` : ''}`);
+  if (heroSource) console.log('  Link preview image: public/images/og.jpg');
+  if (unused && !ALL) console.log(`  ${unused} photos in /photos are not used on the site (npm run photos -- --list).`);
+  if (missing.length) console.log(`  Not found, so not shown on the site: ${missing.join(', ')}`);
+  if (skipped.length) console.log(`  ffmpeg is needed to prepare these films: ${skipped.join(', ')}`);
   console.log('');
 }
 
